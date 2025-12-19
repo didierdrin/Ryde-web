@@ -27,11 +27,7 @@ const Sidebar = () => {
         <aside className="sidebar">
             <div className="logo-container">
                 <div className="logo-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="#3B82F6" />
-                        <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" fill="white" />
-                    </svg>
-                </div>
+                    <img src="ryde-icon.png" alt="Ryde Icon" width="24" height="24" style={{borderRadius: '50%'}} />                </div>
                 <div className="logo-text">
                     <h1>RYDE</h1>
                     <span>Transport System</span>
@@ -49,6 +45,22 @@ const Sidebar = () => {
                         <span>{item.label}</span>
                     </NavLink>
                 ))}
+
+                <div 
+                    className="nav-item logout" 
+                    onClick={() => {
+                        // Sign out from Firebase Auth
+                        import('firebase/auth').then(({ getAuth, signOut }) => {
+                            const auth = getAuth();
+                            signOut(auth).then(() => {
+                                // Redirect to login page after successful logout
+                                window.location.href = '/login';
+                            }).catch((error) => {
+                                console.error('Logout error:', error);
+                            });
+                        });
+                    }}
+                > </div>
 
                 <div className="nav-item logout">
                     <LogOut size={20} />
