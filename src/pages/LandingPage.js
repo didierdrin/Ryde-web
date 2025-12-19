@@ -176,7 +176,7 @@ const LandingPage = () => {
                         <a href="#">Terms of Service</a>
                         <a href="#">Contact Us</a>
                     </div>
-                    <p className="copyright">© 2023 RYDE. All rights reserved.</p>
+                    <p className="copyright">© {new Date().getFullYear()} RYDE. All rights reserved.</p>
                 </div>
             </footer>
         </div>
