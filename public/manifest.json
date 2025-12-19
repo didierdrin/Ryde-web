@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Ryde",
+  "name": "Ride sharing platform - Private Transport Management System",
   "icons": [
     {
       "src": "favicon.ico",
