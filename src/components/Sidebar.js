@@ -5,7 +5,10 @@ import {
     Car,
     Users,
     User,
-    ChevronRight
+    ChevronRight,
+    Crown,
+    LogOut,
+    ChevronLeft
 } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, toggleSidebar }) => {
