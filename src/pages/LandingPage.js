@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle, Smartphone, MapPin, CreditCard, Calendar, Star, User } from 'lucide-react';
+import { CheckCircle, Smartphone, MapPin, CreditCard, Calendar, User } from 'lucide-react';
 
 const LandingPage = () => {
     const navigate = useNavigate();
@@ -12,9 +12,9 @@ const LandingPage = () => {
                 <div className="max-w-7xl mx-auto px-6 py-4">
                     <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
-                            <img 
-                                src="ryde-icon.png" 
-                                alt="RYDE" 
+                            <img
+                                src="ryde-icon.png"
+                                alt="RYDE"
                                 className="w-6 h-6 rounded-full object-cover"
                             />
                             <span className="text-xl font-bold text-gray-900">RYDE</span>
@@ -206,9 +206,9 @@ const LandingPage = () => {
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="flex flex-col md:flex-row justify-between items-center">
                         <div className="flex items-center gap-6 mb-4 md:mb-0">
-                            <a href="#" className="text-gray-400 hover:text-white">Privacy Policy</a>
-                            <a href="#" className="text-gray-400 hover:text-white">Terms of Service</a>
-                            <a href="#" className="text-gray-400 hover:text-white">Contact Us</a>
+                            <a href="/privacy" className="text-gray-400 hover:text-white">Privacy Policy</a>
+                            <a href="/terms" className="text-gray-400 hover:text-white">Terms of Service</a>
+                            <a href="/contact" className="text-gray-400 hover:text-white">Contact Us</a>
                         </div>
                         <p className="text-gray-400">© {new Date().getFullYear()} RYDE. All rights reserved.</p>
                     </div>

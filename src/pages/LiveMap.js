@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, StandaloneSearchBox } from '@react-google-maps/api';
 import { RefreshCw, Maximize, Layers, User, Search, Navigation, Plus, X } from 'lucide-react';
 import Header from '../components/Header';

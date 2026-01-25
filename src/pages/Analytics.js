@@ -3,7 +3,7 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { Route, Users, DollarSign, Star, Calendar, User } from 'lucide-react';
+import { Route, Users, DollarSign, Star, User } from 'lucide-react';
 import Header from '../components/Header';
 
 const StatCard = ({ title, value, change, icon: Icon, color }) => (
@@ -13,26 +13,23 @@ const StatCard = ({ title, value, change, icon: Icon, color }) => (
             <div>
                 <h3 className="text-gray-900 text-3xl font-bold mb-1">{value}</h3>
             </div>
-            <span className={`text-xs font-medium ${
-                change.includes('+') ? 'text-green-600' : 
-                change.includes('-') ? 'text-red-500' : 
-                'text-gray-600'
-            }`}>
+            <span className={`text-xs font-medium ${change.includes('+') ? 'text-green-600' :
+                    change.includes('-') ? 'text-red-500' :
+                        'text-gray-600'
+                }`}>
                 {change}
             </span>
         </div>
-        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-            color === 'blue' ? 'bg-blue-100' :
-            color === 'green' ? 'bg-green-100' :
-            color === 'amber' ? 'bg-amber-100' :
-            'bg-purple-100'
-        }`}>
-            <Icon size={24} className={`${
-                color === 'blue' ? 'text-blue-600' :
-                color === 'green' ? 'text-green-600' :
-                color === 'amber' ? 'text-amber-600' :
-                'text-purple-600'
-            }`} />
+        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color === 'blue' ? 'bg-blue-100' :
+                color === 'green' ? 'bg-green-100' :
+                    color === 'amber' ? 'bg-amber-100' :
+                        'bg-purple-100'
+            }`}>
+            <Icon size={24} className={`${color === 'blue' ? 'text-blue-600' :
+                    color === 'green' ? 'text-green-600' :
+                        color === 'amber' ? 'text-amber-600' :
+                            'text-purple-600'
+                }`} />
         </div>
     </div>
 );
@@ -252,9 +249,8 @@ const Analytics = () => {
                                         <td className="p-4 border-b border-gray-200 text-sm text-gray-900">{item.route}</td>
                                         <td className="p-4 border-b border-gray-200 text-sm text-gray-900">{item.amount}</td>
                                         <td className="p-4 border-b border-gray-200">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                                item.status === 'Completed' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
-                                            }`}>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${item.status === 'Completed' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
+                                                }`}>
                                                 {item.status}
                                             </span>
                                         </td>

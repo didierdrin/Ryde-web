@@ -35,7 +35,7 @@ const Login = () => {
 
     return (
         <div className="flex h-screen w-screen overflow-hidden">
-            <div className="flex-1 bg-cover bg-center relative flex flex-col justify-end p-16 text-white hidden lg:flex" style={{backgroundImage: "url('https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?q=80&w=2070&auto=format&fit=crop')"}}>
+            <div className="flex-1 bg-cover bg-center relative flex flex-col justify-end p-16 text-white hidden lg:flex" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?q=80&w=2070&auto=format&fit=crop')" }}>
                 <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/80"></div>
                 <div className="relative z-10 max-w-2xl">
                     <div className="flex items-center gap-4 mb-6">
@@ -92,7 +92,7 @@ const Login = () => {
                                 <input type="checkbox" className="rounded" />
                                 <span>Remember me</span>
                             </label>
-                            <a href="#" className="text-gray-600 hover:text-gray-900 no-underline">Forgot Password?</a>
+                            <a href="/forgot-password" className="text-gray-600 hover:text-gray-900 no-underline">Forgot Password?</a>
                         </div>
 
                         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
@@ -102,7 +102,7 @@ const Login = () => {
                         </button>
 
                         <p className="text-center text-sm text-gray-600 mt-12">
-                            Don't have an account? <a href="#" className="text-gray-900 font-semibold no-underline">Sign up</a>
+                            Don't have an account? <a href="/signup" className="text-gray-900 font-semibold no-underline">Sign up</a>
                         </p>
                     </form>
                 </div>
