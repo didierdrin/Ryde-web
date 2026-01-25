@@ -5,13 +5,7 @@ import {
     Car,
     Users,
     User,
-    CreditCard,
-    BarChart2,
-    Crown,
-    LogOut,
-    ChevronLeft,
-    ChevronRight,
-    Menu
+    ChevronRight
 } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, toggleSidebar }) => {

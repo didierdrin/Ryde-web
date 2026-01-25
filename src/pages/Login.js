@@ -20,18 +20,7 @@ const Login = () => {
         }
     };
 
-    const handleSocialLogin = async (providerName) => {
-        try {
-            let provider;
-            if (providerName === 'google') provider = new GoogleAuthProvider();
-            if (providerName === 'facebook') provider = new FacebookAuthProvider();
 
-            await signInWithPopup(auth, provider);
-            navigate('/app');
-        } catch (err) {
-            setError('Social login failed');
-        }
-    }
 
     return (
         <div className="flex h-screen w-screen overflow-hidden">

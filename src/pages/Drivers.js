@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs, updateDoc, doc, query, where, getDoc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
 import Header from '../components/Header';
-import { CheckCircle, XCircle, Clock, Truck, FileText, User } from 'lucide-react';
+import { CheckCircle, Clock, Truck, FileText, User } from 'lucide-react';
 
 const Drivers = () => {
     const [drivers, setDrivers] = useState([]);
@@ -35,7 +35,7 @@ const Drivers = () => {
                         // But 'users' collection doc IDs usually are UIDs. 
                         // The schema shows userId as an email string for the vehicle.
                         // I will perform a query for the user.
-                        const q = query(collection(db, 'users'), where('phoneNumber', '==', vehicleData.userId));
+                        // I will perform a query for the user.
                         // Or maybe 'email'? The schema shows phoneNumber as "mailto:..." which is weird. 
                         // Let's assume userId in vehicle matches ONE of the fields in User.
                         // Wait, in `users` schema: phoneNumber: "mailto:didiercode20@gmail.com".
@@ -142,8 +142,8 @@ const Drivers = () => {
                                         <button
                                             onClick={() => toggleApproval(driver.id, driver.approved)}
                                             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${driver.approved
-                                                    ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                                                    : 'bg-green-50 text-green-600 hover:bg-green-100'
+                                                ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                                                : 'bg-green-50 text-green-600 hover:bg-green-100'
                                                 }`}
                                         >
                                             {driver.approved ? 'Reject / Revoke' : 'Approve Driver'}

@@ -4,7 +4,7 @@ import {
     BarChart, Bar
 } from 'recharts';
 import { Users, Route, DollarSign, Crown, User, Loader } from 'lucide-react';
-import { collection, query, limit, getDocs, orderBy, where, Timestamp } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import Header from '../components/Header';
 
@@ -20,14 +20,14 @@ const StatCard = ({ title, value, change, icon: Icon, color }) => (
             )}
         </div>
         <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color === 'blue' ? 'bg-blue-100' :
-                color === 'green' ? 'bg-green-100' :
-                    color === 'amber' ? 'bg-amber-100' :
-                        'bg-purple-100'
+            color === 'green' ? 'bg-green-100' :
+                color === 'amber' ? 'bg-amber-100' :
+                    'bg-purple-100'
             }`}>
             <Icon size={24} className={`${color === 'blue' ? 'text-blue-600' :
-                    color === 'green' ? 'text-green-600' :
-                        color === 'amber' ? 'text-amber-600' :
-                            'text-purple-600'
+                color === 'green' ? 'text-green-600' :
+                    color === 'amber' ? 'text-amber-600' :
+                        'text-purple-600'
                 }`} />
         </div>
     </div>
@@ -299,9 +299,9 @@ const Dashboard = () => {
                                             </td>
                                             <td className="p-4 border-b border-gray-200">
                                                 <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${(ride.status === 'confirmed' || ride.status === 'Completed') ? 'bg-green-100 text-green-600' :
-                                                        (ride.status === 'pending' || ride.status === 'Pending') ? 'bg-amber-100 text-amber-600' :
-                                                            ride.status === 'cancelled' ? 'bg-red-100 text-red-500' :
-                                                                'bg-blue-100 text-blue-600'
+                                                    (ride.status === 'pending' || ride.status === 'Pending') ? 'bg-amber-100 text-amber-600' :
+                                                        ride.status === 'cancelled' ? 'bg-red-100 text-red-500' :
+                                                            'bg-blue-100 text-blue-600'
                                                     }`}>
                                                     {ride.status || 'Pending'}
                                                 </span>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs, deleteDoc, doc, addDoc, Timestamp } from 'firebase/firestore';
 import Header from '../components/Header';
-import { CreditCard, Calendar, Trash2, CheckCircle, Plus } from 'lucide-react';
+import { CreditCard, Calendar, Trash2, Plus } from 'lucide-react';
 
 const Subscriptions = () => {
     const [subscriptions, setSubscriptions] = useState([]);

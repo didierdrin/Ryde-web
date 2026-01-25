@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, query, where, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, Timestamp } from 'firebase/firestore';
 import Header from '../components/Header';
 import { User, Search, MapPin, Plus, Navigation } from 'lucide-react';
 
