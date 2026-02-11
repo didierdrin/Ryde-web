@@ -4,8 +4,7 @@ import {
     BarChart, Bar
 } from 'recharts';
 import { Users, Route, DollarSign, Crown, User, Loader } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../firebase';
+import api from '../services/api';
 import Header from '../components/Header';
 
 const StatCard = ({ title, value, change, icon: Icon, color }) => (
@@ -51,43 +50,31 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // 1. Fetch Request Riders (for Rides, Revenue, Charts)
-                const ridesSnapshot = await getDocs(collection(db, "requestRiders"));
-                const rides = ridesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Fetch trips data
+                const tripsResponse = await api.getTrips();
+                const trips = tripsResponse.trips || [];
 
-                // 2. Fetch Vehicles (for Active Drivers)
-                const vehiclesSnapshot = await getDocs(collection(db, "vehicles"));
-                const vehicles = vehiclesSnapshot.docs.map(doc => doc.data());
-
-                // 3. Fetch Subscriptions
-                const subsSnapshot = await getDocs(collection(db, "subscriptions"));
-
-                // 4. Fetch Users (for driver details)
-                const usersSnapshot = await getDocs(collection(db, "users"));
-                const users = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                // --- Calculate Stats ---
-                const totalRides = rides.length;
-                const activeDrivers = vehicles.filter(v => v.active).length;
-                const revenue = rides.reduce((acc, ride) => acc + (Number(ride.price) || 0), 0);
-                const subscribers = subsSnapshot.size;
+                // Calculate stats
+                const totalRides = trips.length;
+                const completedTrips = trips.filter(t => t.status === 'COMPLETED');
+                const activeDrivers = new Set(trips.filter(t => t.driver_id).map(t => t.driver_id)).size;
+                const revenue = completedTrips.reduce((acc, trip) => acc + (Number(trip.fare) || 0), 0);
 
                 setStats({
                     totalRides,
                     activeDrivers,
                     revenue,
-                    subscribers
+                    subscribers: 0 // Would need separate endpoint for subscriptions
                 });
 
-                // --- Process Chart Data (Weekly Rides) ---
+                // Process Chart Data (Weekly Rides)
                 const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 const ridesPerDay = new Array(7).fill(0);
                 const now = new Date();
 
-                rides.forEach(ride => {
-                    if (ride.createdAt) {
-                        const date = ride.createdAt.toDate ? ride.createdAt.toDate() : new Date(ride.createdAt);
-                        // Check if within last 7 days
+                trips.forEach(trip => {
+                    if (trip.request_time) {
+                        const date = new Date(trip.request_time);
                         const diffTime = Math.abs(now - date);
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                         if (diffDays <= 7) {
@@ -96,30 +83,27 @@ const Dashboard = () => {
                     }
                 });
 
-                // Reorder to start from "Today - 6 days" or just generic Mon-Sun. 
-                // Let's stick to generic Mon-Sun for simplicity or standard week view.
                 const weeklyData = days.map((day, index) => ({
                     name: day,
                     rides: ridesPerDay[index]
                 }));
 
-                // --- Process Chart Data (Revenue) ---
+                // Process Chart Data (Revenue)
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const revenuePerMonth = new Array(12).fill(0);
 
-                rides.forEach(ride => {
-                    if (ride.createdAt && (Number(ride.price) > 0)) {
-                        const date = ride.createdAt.toDate ? ride.createdAt.toDate() : new Date(ride.createdAt);
+                completedTrips.forEach(trip => {
+                    if (trip.request_time) {
+                        const date = new Date(trip.request_time);
                         if (date.getFullYear() === now.getFullYear()) {
-                            revenuePerMonth[date.getMonth()] += Number(ride.price);
+                            revenuePerMonth[date.getMonth()] += Number(trip.fare) || 0;
                         }
                     }
                 });
 
-                // Take current month slice or just show all
                 const monthlyRevenueData = months.map((month, index) => ({
                     name: month,
-                    revenue: revenuePerMonth[index] / 1000 // Convert to 'k' or 'M' as needed, handled in display
+                    revenue: revenuePerMonth[index] / 1000
                 }));
 
                 setChartData({
@@ -127,33 +111,36 @@ const Dashboard = () => {
                     monthlyRevenue: monthlyRevenueData
                 });
 
-                // --- Recent Rides (Sort by date) ---
-                const sortedRides = [...rides].sort((a, b) => {
-                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                // Recent Rides (Sort by date)
+                const sortedRides = [...trips].sort((a, b) => {
+                    const dateA = new Date(a.request_time || 0);
+                    const dateB = new Date(b.request_time || 0);
                     return dateB - dateA;
                 }).slice(0, 5);
                 setRecentRides(sortedRides);
 
-                // --- Top Drivers (Mock logic based on vehicle existence + random stats or real if available) ---
-                // Since we don't have a direct link in the schema provided easily without complex joins, 
-                // we'll list the first few active drivers and simulate their earnings based on a multiplier of the total revenue/count for demo purposes
-                // OR match them if `rider` field in requestRiders matches `userId` in vehicles.
-
-                // Let's try to match: ride.driver (likely stored in notifications or hard to trace back without better schema).
-                // We'll use the 'vehicles' list to get legitimate driver names.
-                const activeVehicleUsers = vehicles.filter(v => v.active).slice(0, 5);
-                const enrichedDrivers = activeVehicleUsers.map(v => {
-                    const userDetails = users.find(u => u.phoneNumber === v.userId || u.id === v.userId) || {};
-                    return {
-                        id: v.userId,
-                        fullName: userDetails.fullName || v.userId,
-                        rides: Math.floor(Math.random() * 50) + 10, // Mocked for display as we lack direct aggregation
-                        earnings: Math.floor(Math.random() * 50000) + 5000,
-                        rating: "4.8"
-                    };
+                // Top Drivers - Extract from trips
+                const driverStats = {};
+                completedTrips.forEach(trip => {
+                    if (trip.driver_id && trip.driver_name) {
+                        if (!driverStats[trip.driver_id]) {
+                            driverStats[trip.driver_id] = {
+                                id: trip.driver_id,
+                                fullName: trip.driver_name,
+                                rides: 0,
+                                earnings: 0,
+                                rating: trip.driver_rating || '5.0'
+                            };
+                        }
+                        driverStats[trip.driver_id].rides += 1;
+                        driverStats[trip.driver_id].earnings += Number(trip.fare) || 0;
+                    }
                 });
-                setTopDrivers(enrichedDrivers);
+
+                const topDriversList = Object.values(driverStats)
+                    .sort((a, b) => b.earnings - a.earnings)
+                    .slice(0, 5);
+                setTopDrivers(topDriversList);
 
                 setLoading(false);
 
@@ -286,27 +273,27 @@ const Dashboard = () => {
                                                         <User size={16} className="text-gray-600" />
                                                     </div>
                                                     <div>
-                                                        <span className="font-medium text-sm text-gray-900 block">{ride.requestedBy || 'Unknown'}</span>
-                                                        <span className="text-xs text-gray-500">{ride.createdAt?.toDate ? ride.createdAt.toDate().toLocaleDateString() : 'Date N/A'}</span>
+                                                        <span className="font-medium text-sm text-gray-900 block">{ride.passenger_name || 'Unknown'}</span>
+                                                        <span className="text-xs text-gray-500">{ride.request_time ? new Date(ride.request_time).toLocaleDateString() : 'Date N/A'}</span>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="p-4 border-b border-gray-200 text-gray-600 text-sm">
                                                 <div className="flex flex-col text-xs">
-                                                    <span className="truncate w-32" title={ride.pickupLocation?.address}>From: {ride.pickupLocation?.address || 'N/A'}</span>
-                                                    <span className="truncate w-32" title={ride.dropoffLocation?.address}>To: {ride.dropoffLocation?.address || 'N/A'}</span>
+                                                    <span className="truncate w-32" title={ride.pickup_address}>From: {ride.pickup_address || 'N/A'}</span>
+                                                    <span className="truncate w-32" title={ride.destination_address}>To: {ride.destination_address || 'N/A'}</span>
                                                 </div>
                                             </td>
                                             <td className="p-4 border-b border-gray-200">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${(ride.status === 'confirmed' || ride.status === 'Completed') ? 'bg-green-100 text-green-600' :
-                                                    (ride.status === 'pending' || ride.status === 'Pending') ? 'bg-amber-100 text-amber-600' :
-                                                        ride.status === 'cancelled' ? 'bg-red-100 text-red-500' :
+                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${ride.status === 'COMPLETED' ? 'bg-green-100 text-green-600' :
+                                                    ride.status === 'REQUESTED' ? 'bg-amber-100 text-amber-600' :
+                                                        ride.status === 'CANCELLED' ? 'bg-red-100 text-red-500' :
                                                             'bg-blue-100 text-blue-600'
                                                     }`}>
-                                                    {ride.status || 'Pending'}
+                                                    {ride.status || 'REQUESTED'}
                                                 </span>
                                             </td>
-                                            <td className="p-4 border-b border-gray-200 text-gray-900 text-sm">RWF {ride.price || 0}</td>
+                                            <td className="p-4 border-b border-gray-200 text-gray-900 text-sm">RWF {ride.fare || 0}</td>
                                         </tr>
                                     )) : (
                                         <tr><td colSpan="4" className="text-center p-4 text-gray-600">No recent rides found.</td></tr>

@@ -1,22 +1,26 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
+import api from '../services/api';
 
 const Login = () => {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        setError('');
+        setLoading(true);
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            await api.login(email, password);
             navigate('/app');
         } catch (err) {
-            setError('Invalid email or password');
+            setError(err.message || 'Invalid email or password');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -86,8 +90,12 @@ const Login = () => {
 
                         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
 
-                        <button type="submit" className="w-full py-3 bg-blue-600 text-white border-none rounded-full font-semibold text-base cursor-pointer transition-colors hover:bg-blue-700">
-                            Login
+                        <button 
+                            type="submit" 
+                            disabled={loading}
+                            className="w-full py-3 bg-blue-600 text-white border-none rounded-full font-semibold text-base cursor-pointer transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {loading ? 'Logging in...' : 'Login'}
                         </button>
 
                         <p className="text-center text-sm text-gray-600 mt-12">
