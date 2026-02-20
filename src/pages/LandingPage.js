@@ -35,7 +35,7 @@ const LandingPage = () => {
             </nav>
 
             {/* Hero Section */}
-            <header className="relative bg-gradient-to-br from-blue-600 to-blue-800 text-white py-20">
+            <header className="relative bg-gradient-to-br from-slate-50 to-slate-800 text-white py-20">
                 <div className="absolute inset-0 bg-black/20"></div>
                 <div className="relative max-w-7xl mx-auto px-6 text-center">
                     <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">Your Private Transport, Managed <br /> Seamlessly</h1>

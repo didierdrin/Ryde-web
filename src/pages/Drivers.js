@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
 import Header from '../components/Header';
 import { CheckCircle, Clock, Truck, FileText, User } from 'lucide-react';
 
 const Drivers = () => {
+    const { isAdmin } = useAuth();
     const [drivers, setDrivers] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -86,6 +88,15 @@ const Drivers = () => {
             alert("Failed to update status");
         }
     };
+
+    if (!isAdmin) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col">
+                <Header title="Drivers" subtitle="Access restricted" />
+                <div className="p-8 text-center text-gray-600">Only admins can view this page.</div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">

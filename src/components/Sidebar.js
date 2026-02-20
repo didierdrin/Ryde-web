@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     Car,
@@ -8,19 +8,35 @@ import {
     ChevronRight,
     Crown,
     LogOut,
-    ChevronLeft
+    ChevronLeft,
+    MapPin,
+    Route,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Sidebar = ({ isCollapsed, toggleSidebar }) => {
-    const navItems = [
-        { to: '/app', icon: LayoutDashboard, label: 'Dashboard' },
-        { to: '/app/rides', icon: Car, label: 'Rides' },
-        { to: '/app/drivers', icon: Users, label: 'Drivers' },
-        { to: '/app/passengers', icon: User, label: 'Passengers' },
-        // { to: '/app/payments', icon: CreditCard, label: 'Payments' },
-        // { to: '/app/analytics', icon: BarChart2, label: 'Analytics' },
-        { to: '/app/subscription', icon: Crown, label: 'Subscription' },
+    const navigate = useNavigate();
+    const { user, logout, isPassenger, isDriver, isAdmin } = useAuth();
+
+    const baseItems = [
+        { to: '/app', icon: LayoutDashboard, label: 'Dashboard', roles: ['PASSENGER', 'DRIVER', 'ADMIN'] },
+        { to: '/app/trips', icon: Route, label: 'Trips', roles: ['PASSENGER', 'DRIVER', 'ADMIN'] },
+        { to: '/app/rides', icon: Car, label: 'Rides', roles: ['PASSENGER', 'ADMIN'] },
+        { to: '/app/rentals', icon: MapPin, label: 'Rentals', roles: ['PASSENGER', 'ADMIN'] },
+        { to: '/app/drivers', icon: Users, label: 'Drivers', roles: ['ADMIN'] },
+        { to: '/app/passengers', icon: User, label: 'Passengers', roles: ['ADMIN'] },
+        { to: '/app/subscription', icon: Crown, label: 'Subscription', roles: ['DRIVER', 'ADMIN'] },
     ];
+
+    const navItems = baseItems.filter((item) => {
+        const role = user?.userType;
+        return role && item.roles.includes(role);
+    });
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
     return (
         <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-white border-r border-gray-200 h-screen fixed left-0 top-0 flex flex-col p-4 z-20 transition-all duration-300`}>
@@ -35,7 +51,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar }) => {
                     </div>
                 )}
 
-                {/* Toggle Button */}
                 <button
                     onClick={toggleSidebar}
                     className={`absolute -right-8 top-1/2 -translate-y-1/2 bg-white border border-gray-200 p-1 rounded-full shadow-sm text-gray-500 hover:text-blue-600 z-30 hidden md:flex ${isCollapsed ? 'right-[-32px]' : '-right-8'}`}
@@ -59,8 +74,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar }) => {
                     >
                         <item.icon size={20} className="shrink-0" />
                         {!isCollapsed && <span>{item.label}</span>}
-
-                        {/* Tooltip for collapsed state */}
                         {isCollapsed && (
                             <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-50 pointer-events-none transition-opacity">
                                 {item.label}
@@ -70,17 +83,9 @@ const Sidebar = ({ isCollapsed, toggleSidebar }) => {
                 ))}
 
                 <button
+                    type="button"
+                    onClick={handleLogout}
                     className={`flex items-center gap-4 p-3 rounded-lg text-gray-600 font-medium transition-all cursor-pointer mt-auto hover:bg-red-50 hover:text-red-500 group relative ${isCollapsed ? 'justify-center' : ''}`}
-                    onClick={() => {
-                        import('firebase/auth').then(({ getAuth, signOut }) => {
-                            const auth = getAuth();
-                            signOut(auth).then(() => {
-                                window.location.href = '/login';
-                            }).catch((error) => {
-                                console.error('Logout error:', error);
-                            });
-                        });
-                    }}
                 >
                     <LogOut size={20} className="shrink-0" />
                     {!isCollapsed && <span>Logout</span>}
@@ -91,8 +96,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar }) => {
                     )}
                 </button>
             </nav>
-
-            {/* Mobile Toggle inside sidebar at bottom if needed, or rely on top button */}
         </aside>
     );
 };

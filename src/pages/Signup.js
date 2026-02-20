@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const USER_TYPES = [
   { value: 'PASSENGER', label: 'Passenger' },
@@ -9,6 +10,7 @@ const USER_TYPES = [
 
 const Signup = () => {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -55,6 +57,7 @@ const Signup = () => {
         payload.licenseNumber = formData.licenseNumber.trim();
       }
       await api.register(payload);
+      await refreshUser();
       navigate('/app');
     } catch (err) {
       setError(err.message || 'Registration failed');

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, query, Timestamp } from 'firebase/firestore';
 import Header from '../components/Header';
 import { User, Search, MapPin, Plus, Navigation } from 'lucide-react';
 
 const Passengers = () => {
+    const { isAdmin } = useAuth();
     const [passengers, setPassengers] = useState([]);
     const [filteredPassengers, setFilteredPassengers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -95,6 +97,15 @@ const Passengers = () => {
         setSelectedUser(user);
         setIsRideModalOpen(true);
     };
+
+    if (!isAdmin) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col">
+                <Header title="Passengers" subtitle="Access restricted" />
+                <div className="p-8 text-center text-gray-600">Only admins can view this page.</div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">

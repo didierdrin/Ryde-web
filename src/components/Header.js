@@ -1,17 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Bell, User } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+const formatRole = (userType) => {
+    if (!userType) return 'User';
+    const labels = { PASSENGER: 'Passenger', DRIVER: 'Driver', ADMIN: 'Admin' };
+    return labels[userType] || userType;
+};
 
 const Header = ({ title, subtitle }) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState('');
+    const { user } = useAuth();
 
     useEffect(() => {
         const query = searchParams.get('q');
-        if (query) {
-            setSearchTerm(query);
-        }
+        if (query) setSearchTerm(query);
     }, [searchParams]);
 
     const handleSearch = (e) => {
@@ -51,15 +57,24 @@ const Header = ({ title, subtitle }) => {
                         </span>
                     </div>
 
-                    <div className="flex items-center gap-2 cursor-pointer">
-                        <div className="w-10 h-10 rounded-full border-2 border-blue-500 bg-blue-100 flex items-center justify-center">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/app/profile')}
+                        className="flex items-center gap-2 cursor-pointer rounded-lg p-1 -m-1 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:ring-offset-1"
+                        aria-label="Go to profile"
+                    >
+                        <div className="w-10 h-10 rounded-full border-2 border-blue-500 bg-blue-100 flex items-center justify-center shrink-0">
                             <User size={20} className="text-blue-600" />
                         </div>
-                        <div className="flex flex-col">
-                            <span className="text-sm font-semibold text-gray-900">John Admin</span>
-                            <span className="text-xs text-gray-600">System Admin</span>
+                        <div className="flex flex-col text-left">
+                            <span className="text-sm font-semibold text-gray-900">
+                                {user?.name ?? 'Loading…'}
+                            </span>
+                            <span className="text-xs text-gray-600">
+                                {user ? formatRole(user.userType) : '—'}
+                            </span>
                         </div>
-                    </div>
+                    </button>
                 </div>
             </div>
         </header>
