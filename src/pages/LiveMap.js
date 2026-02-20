@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, StandaloneSearchBox } from '@react-google-maps/api';
-import { RefreshCw, User, Search, Navigation, Plus, X } from 'lucide-react';
+import { User, Search, Navigation, Plus, X } from 'lucide-react';
 import Header from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -13,11 +13,11 @@ const KIGALI = { lat: -1.9441, lng: 30.0619 };
 // Passenger: request a ride via API
 function RequestRideView() {
     const [pickupAddress, setPickupAddress] = useState('');
-    const [pickupLat, setPickupLat] = useState(KIGALI.lat);
-    const [pickupLng, setPickupLng] = useState(KIGALI.lng);
+    const [pickupLat] = useState(KIGALI.lat);
+    const [pickupLng] = useState(KIGALI.lng);
     const [destinationAddress, setDestinationAddress] = useState('');
-    const [destLat, setDestLat] = useState(-1.95);
-    const [destLng, setDestLng] = useState(30.07);
+    const [destLat] = useState(-1.95);
+    const [destLng] = useState(30.07);
     const [distance, setDistance] = useState('');
     const [fare, setFare] = useState('');
     const [submitting, setSubmitting] = useState(false);

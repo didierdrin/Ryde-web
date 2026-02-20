@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import Header from '../components/Header';
-import { MapPin, Navigation, Loader, Route, X, CheckCircle } from 'lucide-react';
+import { MapPin, Loader, Route, X, CheckCircle } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 
 const KIGALI = { lat: -1.9441, lng: 30.0619 };
@@ -69,7 +69,7 @@ const TripMap = ({ trip, onClose }) => {
 };
 
 const Trips = () => {
-    const { user, isPassenger, isDriver, isAdmin } = useAuth();
+    const { isPassenger, isDriver, isAdmin } = useAuth();
     const [trips, setTrips] = useState([]);
     const [availableTrips, setAvailableTrips] = useState([]);
     const [loading, setLoading] = useState(true);

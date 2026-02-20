@@ -15,14 +15,6 @@ import Search from './pages/Search';
 import Profile from './pages/Profile';
 import api from './services/api';
 
-// Placeholder components
-const Placeholder = ({ title }) => (
-  <div className="p-8">
-    <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-    <p className="text-gray-600">This page is under construction.</p>
-  </div>
-);
-
 function ProtectedRoute({ children }) {
   const { loading, user } = useAuth();
   if (loading) {

@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 
 const Sidebar = ({ isCollapsed, toggleSidebar }) => {
     const navigate = useNavigate();
-    const { user, logout, isPassenger, isDriver, isAdmin } = useAuth();
+    const { user, logout } = useAuth();
 
     const baseItems = [
         { to: '/app', icon: LayoutDashboard, label: 'Dashboard', roles: ['PASSENGER', 'DRIVER', 'ADMIN'] },
@@ -32,6 +32,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar }) => {
         const role = user?.userType;
         return role && item.roles.includes(role);
     });
+
 
     const handleLogout = () => {
         logout();

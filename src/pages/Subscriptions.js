@@ -11,10 +11,7 @@ const PLANS = [
 ];
 
 function DriverSubscriptionView() {
-    const [selectedPlan, setSelectedPlan] = useState(null);
-
     const handlePurchase = (plan) => {
-        setSelectedPlan(plan);
         alert(`Subscription "${plan.name}" — payment will be completed with IremboPay when integrated.`);
     };
 

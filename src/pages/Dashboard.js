@@ -34,7 +34,7 @@ const StatCard = ({ title, value, change, icon: Icon, color }) => (
 );
 
 const Dashboard = () => {
-    const { user, isPassenger, isDriver, isAdmin } = useAuth();
+    const { isPassenger, isDriver, isAdmin } = useAuth();
     const [recentRides, setRecentRides] = useState([]);
     const [topDrivers, setTopDrivers] = useState([]);
     const [stats, setStats] = useState({
