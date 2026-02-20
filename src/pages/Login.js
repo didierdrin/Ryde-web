@@ -37,7 +37,7 @@ const Login = () => {
                         <h1 className="text-4xl font-extrabold tracking-wider">RYDE</h1>
                     </div>
                     <h2 className="text-4xl font-bold mb-4 leading-tight">Secure login required. <br /> Enter your credentials to access your accounts.</h2>
-                    <p className="text-lg text-white/80 mb-12">Lorem ipsum dolor sit amet consectetur. Consequat et sapien eu dictum elit.</p>
+                    <p className="text-lg text-white/80 mb-12">Sign in to manage rides, trips, and your account.</p>
                     <div className="flex gap-2">
                         <span className="w-15 h-1 bg-white rounded-full"></span>
                         <span className="w-10 h-1 bg-white/30 rounded-full"></span>
