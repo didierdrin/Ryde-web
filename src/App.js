@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import LiveMap from './pages/LiveMap';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import LandingPage from './pages/LandingPage';
 import Drivers from './pages/Drivers';
 import Passengers from './pages/Passengers';
@@ -24,6 +25,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
 
         <Route path="/app" element={<DashboardLayout />}>
           <Route index element={<Dashboard />} />

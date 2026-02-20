@@ -33,7 +33,19 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      const data = await response.json();
+      const text = await response.text();
+
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (_) {
+        if (text.trimStart().startsWith('<')) {
+          throw new Error(
+            'Server returned a web page instead of JSON. Check that REACT_APP_API_URL points to your API (e.g. https://your-backend.up.railway.app/api), not to the frontend URL.'
+          );
+        }
+        throw new Error('Invalid response from server. Please try again.');
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Request failed');
@@ -48,10 +60,14 @@ class ApiService {
 
   // Auth endpoints
   async register(userData) {
-    return this.request('/auth/register', {
+    const data = await this.request('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
+    if (data.token) {
+      this.setToken(data.token);
+    }
+    return data;
   }
 
   async login(email, password) {

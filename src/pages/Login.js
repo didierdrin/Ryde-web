@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 
 const Login = () => {
@@ -99,7 +99,7 @@ const Login = () => {
                         </button>
 
                         <p className="text-center text-sm text-gray-600 mt-12">
-                            Don't have an account? <a href="/signup" className="text-gray-900 font-semibold no-underline">Sign up</a>
+                            Don't have an account? <Link to="/signup" className="text-gray-900 font-semibold no-underline">Sign up</Link>
                         </p>
                     </form>
                 </div>
