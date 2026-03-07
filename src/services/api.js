@@ -1,13 +1,16 @@
-// Production: use empty base so requests go to same origin and Vercel rewrites /api/* to Railway (avoids CORS).
-// Development: use REACT_APP_API_URL or default to local backend.
+// Production with empty/missing REACT_APP_API_URL: use /api (same-origin) so Vercel proxy forwards to Railway.
+// Set REACT_APP_API_URL to a full URL (e.g. https://your-backend.railway.app/api) to call the backend directly.
 const raw = process.env.REACT_APP_API_URL;
 const isProduction = process.env.NODE_ENV === 'production';
-const useProxy = isProduction && (raw === '' || raw === undefined || raw === 'proxy');
+const hasAbsoluteUrl = typeof raw === 'string' && /^https?:\/\//i.test(raw.trim());
+const useProxy = isProduction && !hasAbsoluteUrl;
 const API_BASE_URL = useProxy
   ? '/api'
-  : (raw && /^https?:\/\//i.test(raw))
-    ? raw
-    : (raw ? `https://${String(raw).replace(/^\//, '')}` : 'http://localhost:3000/api');
+  : hasAbsoluteUrl
+    ? raw.trim()
+    : (typeof raw === 'string' && raw.trim())
+      ? (raw.trim().startsWith('http') ? raw.trim() : `https://${raw.trim().replace(/^\//, '')}`)
+      : 'http://localhost:3000/api';
 
 class ApiService {
   constructor() {

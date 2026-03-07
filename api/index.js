@@ -1,4 +1,4 @@
-const BACKEND = process.env.RAILWAY_API_URL || 'https://ryde-backend-production-1fd1.up.railway.app';
+const BACKEND = (process.env.RAILWAY_API_URL || 'https://ryde-backend-production-1fd1.up.railway.app').replace(/\/+$/, '');
 const FETCH_TIMEOUT_MS = 25000;
 
 function getRawBody(req) {
@@ -28,11 +28,26 @@ async function getRequestBody(req) {
   return getRawBody(req);
 }
 
-module.exports = async function handler(req, res) {
-  let path = req.query.path;
+function getPathFromRequest(req) {
+  let path = req.query && req.query.path;
   if (Array.isArray(path)) path = path.join('/');
-  if (!path || typeof path !== 'string') {
-    res.status(400).json({ error: 'Missing path', query: req.query });
+  if (path && typeof path === 'string') return path;
+  if (req.url) {
+    try {
+      const idx = req.url.indexOf('?');
+      const query = idx >= 0 ? req.url.slice(idx) : '';
+      const params = new URLSearchParams(query);
+      path = params.get('path');
+      if (path) return path;
+    } catch (_) {}
+  }
+  return null;
+}
+
+module.exports = async function handler(req, res) {
+  const path = getPathFromRequest(req);
+  if (!path || path.length === 0) {
+    res.status(400).json({ error: 'Missing path', query: req.query, url: req.url });
     return;
   }
 
