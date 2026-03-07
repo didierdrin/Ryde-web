@@ -1,5 +1,6 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
-console.log('API_BASE_URL:', API_BASE_URL);
+// Ensure absolute URL: prepend https:// if no protocol (fixes Vercel env without protocol)
+const raw = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = /^https?:\/\//i.test(raw) ? raw : `https://${raw.replace(/^\//, '')}`;
 
 class ApiService {
   constructor() {
