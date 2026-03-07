@@ -16,6 +16,8 @@ const statusColors = {
     CANCELLED: 'bg-red-100 text-red-700',
 };
 
+const IPAY_PUBLIC_KEY = process.env.REACT_APP_IPAY_PUBLIC_KEY || '';
+
 const TripMap = ({ trip, onClose }) => {
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script-trips',
@@ -83,6 +85,7 @@ const Trips = () => {
     const [useMyLocation, setUseMyLocation] = useState(false);
     const [requestLoading, setRequestLoading] = useState(false);
     const [requestError, setRequestError] = useState('');
+    const [payingTripId, setPayingTripId] = useState(null);
 
     const fetchMyTrips = useCallback(async () => {
         try {
@@ -140,6 +143,52 @@ const Trips = () => {
             alert(e.message || 'Failed to accept trip');
         } finally {
             setAcceptingId(null);
+        }
+    };
+
+    const handlePayWithIremboPay = async (tripId) => {
+        if (!IPAY_PUBLIC_KEY) {
+            alert('Payment (IremboPay) is not configured.');
+            return;
+        }
+        if (typeof window.IremboPay === 'undefined') {
+            alert('Payment system is not ready. Please refresh and try again.');
+            return;
+        }
+        setPayingTripId(tripId);
+        try {
+            const { payment } = await api.getPaymentByTrip(tripId);
+            if (payment.payment_status === 'COMPLETED') {
+                alert('This trip is already paid.');
+                return;
+            }
+            const { invoiceNumber, paymentId } = await api.createPaymentInvoice(payment.payment_id);
+            if (!invoiceNumber) {
+                alert('Could not create payment invoice. Please try again.');
+                return;
+            }
+            window.IremboPay.initiate({
+                publicKey: IPAY_PUBLIC_KEY,
+                invoiceNumber,
+                locale: window.IremboPay.locale.EN,
+                callback: async (err, resp) => {
+                    setPayingTripId(null);
+                    if (!err) {
+                        try {
+                            await api.completePayment(paymentId, invoiceNumber);
+                            await fetchMyTrips();
+                            alert('Payment successful!');
+                        } catch (e) {
+                            alert(e.message || 'Payment recorded but update failed.');
+                        }
+                    } else {
+                        alert('Payment failed or was cancelled.');
+                    }
+                },
+            });
+        } catch (e) {
+            setPayingTripId(null);
+            alert(e.message || 'Failed to start payment.');
         }
     };
 
@@ -362,13 +411,26 @@ const Trips = () => {
                                             </td>
                                             <td className="p-4 font-medium text-gray-900">RWF {t.fare ?? 0}</td>
                                             <td className="p-4">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setSelectedTrip(t)}
-                                                    className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                                                >
-                                                    <MapPin size={16} /> Map
-                                                </button>
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedTrip(t)}
+                                                        className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                                                    >
+                                                        <MapPin size={16} /> Map
+                                                    </button>
+                                                    {isPassenger && t.status !== 'CANCELLED' && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handlePayWithIremboPay(t.tripId)}
+                                                            disabled={payingTripId === t.tripId}
+                                                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+                                                        >
+                                                            {payingTripId === t.tripId ? <Loader size={14} className="animate-spin" /> : null}
+                                                            Pay
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}

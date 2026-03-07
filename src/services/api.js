@@ -189,6 +189,12 @@ class ApiService {
     return this.request(`/payments/trip/${tripId}`);
   }
 
+  async createPaymentInvoice(paymentId) {
+    return this.request(`/payments/${paymentId}/create-invoice`, {
+      method: 'POST',
+    });
+  }
+
   async completePayment(paymentId, transactionRef) {
     return this.request(`/payments/${paymentId}/complete`, {
       method: 'POST',
