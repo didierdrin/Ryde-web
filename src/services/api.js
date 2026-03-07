@@ -1,16 +1,5 @@
-// Production with empty/missing REACT_APP_API_URL: use /api (same-origin) so Vercel proxy forwards to Railway.
-// Set REACT_APP_API_URL to a full URL (e.g. https://your-backend.railway.app/api) to call the backend directly.
-const raw = process.env.REACT_APP_API_URL;
-const isProduction = process.env.NODE_ENV === 'production';
-const hasAbsoluteUrl = typeof raw === 'string' && /^https?:\/\//i.test(raw.trim());
-const useProxy = isProduction && !hasAbsoluteUrl;
-const API_BASE_URL = useProxy
-  ? '/api'
-  : hasAbsoluteUrl
-    ? raw.trim()
-    : (typeof raw === 'string' && raw.trim())
-      ? (raw.trim().startsWith('http') ? raw.trim() : `https://${raw.trim().replace(/^\//, '')}`)
-      : 'http://localhost:3000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+console.log('API_BASE_URL:', API_BASE_URL);
 
 class ApiService {
   constructor() {
