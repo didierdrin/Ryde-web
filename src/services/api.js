@@ -1,6 +1,13 @@
-// Ensure absolute URL: prepend https:// if no protocol (fixes Vercel env without protocol)
-const raw = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
-const API_BASE_URL = /^https?:\/\//i.test(raw) ? raw : `https://${raw.replace(/^\//, '')}`;
+// Production: use empty base so requests go to same origin and Vercel rewrites /api/* to Railway (avoids CORS).
+// Development: use REACT_APP_API_URL or default to local backend.
+const raw = process.env.REACT_APP_API_URL;
+const isProduction = process.env.NODE_ENV === 'production';
+const useProxy = isProduction && (raw === '' || raw === undefined || raw === 'proxy');
+const API_BASE_URL = useProxy
+  ? '/api'
+  : (raw && /^https?:\/\//i.test(raw))
+    ? raw
+    : (raw ? `https://${String(raw).replace(/^\//, '')}` : 'http://localhost:3000/api');
 
 class ApiService {
   constructor() {
