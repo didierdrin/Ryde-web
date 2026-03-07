@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 import Header from '../components/Header';
-import { Car, Plus, CreditCard } from 'lucide-react';
+import { Car, Plus, CreditCard, Loader } from 'lucide-react';
+
+const IPAY_PUBLIC_KEY = process.env.REACT_APP_IPAY_PUBLIC_KEY || '';
 
 // Placeholder in-memory list for demo (no rental API in backend yet)
 const MOCK_VEHICLES = [
@@ -18,6 +21,7 @@ const Rentals = () => {
     const [newVehicle, setNewVehicle] = useState({
         make: '', model: '', year: '', color: '', vehicleType: 'SEDAN', dailyRate: ''
     });
+    const [payingVehicleId, setPayingVehicleId] = useState(null);
 
     useEffect(() => {
         setLoading(true);
@@ -43,22 +47,58 @@ const Rentals = () => {
         setShowAddModal(false);
     };
 
-    const handleRent = (vehicle) => {
-        alert(`Rental booking for ${vehicle.make} ${vehicle.model} will use IremboPay when integrated. Payment placeholder.`);
+    const handleRent = async (vehicle, days = 1) => {
+        if (!IPAY_PUBLIC_KEY) {
+            alert('Payment (IremboPay) is not configured.');
+            return;
+        }
+        if (typeof window.IremboPay === 'undefined') {
+            alert('Payment system is not ready. Please refresh and try again.');
+            return;
+        }
+        const amount = Number(vehicle.dailyRate) * Math.max(1, Number(days));
+        if (!amount || amount <= 0) {
+            alert('Invalid amount.');
+            return;
+        }
+        setPayingVehicleId(vehicle.id);
+        try {
+            const { invoiceNumber } = await api.createInvoiceForAmount(amount);
+            if (!invoiceNumber) {
+                alert('Could not create payment invoice. Please try again.');
+                return;
+            }
+            window.IremboPay.initiate({
+                publicKey: IPAY_PUBLIC_KEY,
+                invoiceNumber,
+                locale: window.IremboPay.locale.EN,
+                callback: (err) => {
+                    setPayingVehicleId(null);
+                    if (!err) {
+                        alert(`Booking confirmed for ${vehicle.make} ${vehicle.model}. Payment successful!`);
+                    } else {
+                        alert('Payment failed or was cancelled.');
+                    }
+                },
+            });
+        } catch (e) {
+            setPayingVehicleId(null);
+            alert(e.message || 'Failed to start payment.');
+        }
     };
 
     return (
         <div className="min-h-screen bg-gray-50">
             <Header
                 title="Rentals"
-                subtitle={isPassenger ? 'Rent a vehicle — payment via IremboPay (to be integrated)' : 'Add and manage rental vehicles'}
+                subtitle={isPassenger ? 'Rent a vehicle — pay with IremboPay' : 'Add and manage rental vehicles'}
             />
 
             <div className="max-w-6xl mx-auto p-6">
                 {isPassenger && (
-                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-800">
+                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 text-blue-800">
                         <CreditCard size={20} />
-                        <span>Payment for rentals will be completed with IremboPay once integrated.</span>
+                        <span>Pay securely with IremboPay when you book.</span>
                     </div>
                 )}
 
@@ -104,9 +144,11 @@ const Rentals = () => {
                                     <button
                                         type="button"
                                         onClick={() => handleRent(v)}
-                                        className="mt-4 w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+                                        disabled={payingVehicleId === v.id}
+                                        className="mt-4 w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
                                     >
-                                        Book (IremboPay later)
+                                        {payingVehicleId === v.id ? <Loader size={18} className="animate-spin" /> : null}
+                                        Book (Pay with IremboPay)
                                     </button>
                                 )}
                             </div>

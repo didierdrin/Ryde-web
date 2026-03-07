@@ -195,6 +195,13 @@ class ApiService {
     });
   }
 
+  async createInvoiceForAmount(amount, address) {
+    return this.request('/payments/create-invoice-for-amount', {
+      method: 'POST',
+      body: JSON.stringify({ amount: Number(amount), address: address || undefined }),
+    });
+  }
+
   async completePayment(paymentId, transactionRef) {
     return this.request(`/payments/${paymentId}/complete`, {
       method: 'POST',
