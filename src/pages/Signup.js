@@ -7,7 +7,10 @@ import { useAuth } from '../context/AuthContext';
 const USER_TYPES = [
   { value: 'PASSENGER', label: 'Passenger' },
   { value: 'DRIVER', label: 'Driver' },
+  { value: 'ADMIN', label: 'Admin' },
 ];
+
+const ADMIN_REFERRAL_CODE = '1111';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -19,6 +22,7 @@ const Signup = () => {
     password: '',
     userType: 'PASSENGER',
     licenseNumber: '',
+    referralCode: '',
   });
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -45,6 +49,17 @@ const Signup = () => {
       return;
     }
 
+    if (formData.userType === 'ADMIN') {
+      if (!formData.referralCode.trim()) {
+        setError('Referral code is required for admin registration');
+        return;
+      }
+      if (formData.referralCode.trim() !== ADMIN_REFERRAL_CODE) {
+        setError('Invalid referral code');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const payload = {
@@ -57,6 +72,9 @@ const Signup = () => {
       if (formData.userType === 'DRIVER' && formData.licenseNumber.trim()) {
         payload.licenseNumber = formData.licenseNumber.trim();
       }
+      if (formData.userType === 'ADMIN' && formData.referralCode.trim()) {
+        payload.referralCode = formData.referralCode.trim();
+      }
       await api.register(payload);
       await refreshUser();
       navigate('/app');
@@ -68,6 +86,7 @@ const Signup = () => {
   };
 
   const isDriver = formData.userType === 'DRIVER';
+  const isAdmin = formData.userType === 'ADMIN';
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
@@ -168,6 +187,22 @@ const Signup = () => {
                   name="licenseNumber"
                   placeholder="e.g. DL123456"
                   value={formData.licenseNumber}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm outline-none transition-colors focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                />
+              </div>
+            )}
+
+            {isAdmin && (
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-900 mb-1">
+                  Referral code
+                </label>
+                <input
+                  type="text"
+                  name="referralCode"
+                  placeholder="Enter admin referral code"
+                  value={formData.referralCode}
                   onChange={handleChange}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm outline-none transition-colors focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                 />
