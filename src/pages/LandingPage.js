@@ -8,7 +8,7 @@ const LandingPage = () => {
     return (
         <div className="min-h-screen">
             {/* Navbar */}
-            <nav className="bg-white shadow-sm sticky top-0 z-50">
+            <nav className="fixed top-0 left-0 right-0 z-50" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6), transparent)' }}>
                 <div className="max-w-7xl mx-auto px-6 py-4">
                     <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
@@ -17,17 +17,14 @@ const LandingPage = () => {
                                 alt="RYDE"
                                 className="w-6 h-6 rounded-full object-cover"
                             />
-                            <span className="text-xl font-bold text-gray-900">RYDE</span>
+                            <span className="text-xl font-bold text-white">RYDE</span>
                         </div>
 
-                        <div className="hidden md:flex items-center gap-8">
-                            <a href="#features" className="text-gray-600 hover:text-gray-900">Features</a>
-                            <a href="#pricing" className="text-gray-600 hover:text-gray-900">Pricing</a>
-                            <a href="#support" className="text-gray-600 hover:text-gray-900">Support</a>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <button className="px-4 py-2 text-gray-600 hover:text-gray-900" onClick={() => navigate('/signup')}>Sign Up</button>
+                        <div className="flex items-center gap-6">
+                            <a href="#features" className="hidden md:block text-white/80 hover:text-white">Features</a>
+                            <a href="#pricing" className="hidden md:block text-white/80 hover:text-white">Pricing</a>
+                            <a href="#support" className="hidden md:block text-white/80 hover:text-white">Support</a>
+                            <button className="px-4 py-2 text-white/80 hover:text-white border border-white/30 rounded-lg" onClick={() => navigate('/signup')}>Sign Up</button>
                             <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" onClick={() => navigate('/login')}>Log In</button>
                         </div>
                     </div>
@@ -35,9 +32,9 @@ const LandingPage = () => {
             </nav>
 
             {/* Hero Section */}
-            <header className="relative bg-gradient-to-br from-slate-50 to-slate-800 text-white py-20">
-                <div className="absolute inset-0 bg-black/20"></div>
-                <div className="relative max-w-7xl mx-auto px-6 text-center">
+            <header className="relative bg-cover bg-center text-white min-h-[600px] flex items-center" style={{ backgroundImage: "url('ryde-landing-page.png')" }}>
+                <div className="absolute inset-0 bg-black/30"></div>
+                <div className="relative max-w-7xl mx-auto px-6 text-center w-full">
                     <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">Your Private Transport, Managed <br /> Seamlessly</h1>
                     <p className="text-xl text-blue-100 max-w-3xl mx-auto">RYDE offers a comprehensive solution for managing your private transport needs, from real-time booking to secure payments and flexible subscriptions.</p>
                 </div>
@@ -137,7 +134,7 @@ const LandingPage = () => {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                         <div className="text-center">
-                            <img src="ryde-landing-page.png" alt="Passenger" className="w-full h-64 object-cover rounded-lg mb-6" />
+                            <img src="https://images.unsplash.com/photo-1512428559087-560fa0d8988e?q=80&w=2070&auto=format&fit=crop" alt="Passenger" className="w-full h-64 object-cover rounded-lg mb-6" />
                             <h3 className="text-2xl font-semibold text-gray-900 mb-4">For Passengers</h3>
                             <p className="text-gray-600">RYDE offers a convenient and affordable way to get around. With a few taps, you can request a ride and track your driver's arrival in real-time.</p>
                         </div>
