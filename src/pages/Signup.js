@@ -93,8 +93,7 @@ const Signup = () => {
       <div
         className="flex-1 bg-cover bg-center relative flex flex-col justify-end p-16 text-white hidden lg:flex"
         style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?q=80&w=2070&auto=format&fit=crop')",
+          backgroundImage: "url('ryde-signin-signup-page.png')",
         }}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/80"></div>

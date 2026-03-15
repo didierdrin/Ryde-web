@@ -137,7 +137,7 @@ const LandingPage = () => {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                         <div className="text-center">
-                            <img src="https://images.unsplash.com/photo-1512428559087-560fa0d8988e?q=80&w=2070&auto=format&fit=crop" alt="Passenger" className="w-full h-64 object-cover rounded-lg mb-6" />
+                            <img src="ryde-landing-page.png" alt="Passenger" className="w-full h-64 object-cover rounded-lg mb-6" />
                             <h3 className="text-2xl font-semibold text-gray-900 mb-4">For Passengers</h3>
                             <p className="text-gray-600">RYDE offers a convenient and affordable way to get around. With a few taps, you can request a ride and track your driver's arrival in real-time.</p>
                         </div>
