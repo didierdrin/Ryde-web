@@ -6,6 +6,17 @@ import { Car, Plus, CreditCard, Loader } from 'lucide-react';
 
 const IPAY_PUBLIC_KEY = process.env.REACT_APP_IPAY_PUBLIC_KEY || '';
 
+async function waitForRentalIntentCompleted(intentId, maxMs = 45000) {
+    const start = Date.now();
+    while (Date.now() - start < maxMs) {
+        const { intent } = await api.getRentalIntent(intentId);
+        if (intent.status === 'COMPLETED') return 'COMPLETED';
+        if (intent.status === 'FAILED') return 'FAILED';
+        await new Promise((r) => setTimeout(r, 2000));
+    }
+    return 'TIMEOUT';
+}
+
 // Placeholder in-memory list for demo (no rental API in backend yet)
 const MOCK_VEHICLES = [
     { id: '1', make: 'Toyota', model: 'RAV4', year: 2022, color: 'White', type: 'SUV', dailyRate: 35000 },
@@ -63,8 +74,8 @@ const Rentals = () => {
         }
         setPayingVehicleId(vehicle.id);
         try {
-            const { invoiceNumber } = await api.createInvoiceForAmount(amount);
-            if (!invoiceNumber) {
+            const { invoiceNumber, intentId } = await api.createInvoiceForAmount(amount, undefined, vehicle.id);
+            if (!invoiceNumber || !intentId) {
                 alert('Could not create payment invoice. Please try again.');
                 return;
             }
@@ -72,10 +83,19 @@ const Rentals = () => {
                 publicKey: IPAY_PUBLIC_KEY,
                 invoiceNumber,
                 locale: window.IremboPay.locale.EN,
-                callback: (err) => {
+                callback: async (err) => {
                     setPayingVehicleId(null);
                     if (!err) {
-                        alert(`Booking confirmed for ${vehicle.make} ${vehicle.model}. Payment successful!`);
+                        const outcome = await waitForRentalIntentCompleted(intentId);
+                        if (outcome === 'COMPLETED') {
+                            alert(`Booking confirmed for ${vehicle.make} ${vehicle.model}. Payment successful!`);
+                        } else if (outcome === 'FAILED') {
+                            alert('Payment was recorded as failed.');
+                        } else {
+                            alert(
+                                'Payment is processing. If booking status does not update, refresh or contact support.'
+                            );
+                        }
                     } else {
                         alert('Payment failed or was cancelled.');
                     }

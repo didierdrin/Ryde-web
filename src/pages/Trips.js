@@ -18,6 +18,17 @@ const statusColors = {
 
 const IPAY_PUBLIC_KEY = process.env.REACT_APP_IPAY_PUBLIC_KEY || '';
 
+async function waitForTripPaymentCompleted(tripId, maxMs = 45000) {
+    const start = Date.now();
+    while (Date.now() - start < maxMs) {
+        const { payment } = await api.getPaymentByTrip(tripId);
+        if (payment.payment_status === 'COMPLETED') return 'COMPLETED';
+        if (payment.payment_status === 'FAILED') return 'FAILED';
+        await new Promise((r) => setTimeout(r, 2000));
+    }
+    return 'TIMEOUT';
+}
+
 const TripMap = ({ trip, onClose }) => {
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script-trips',
@@ -162,7 +173,7 @@ const Trips = () => {
                 alert('This trip is already paid.');
                 return;
             }
-            const { invoiceNumber, paymentId } = await api.createPaymentInvoice(payment.payment_id);
+            const { invoiceNumber } = await api.createPaymentInvoice(payment.payment_id);
             if (!invoiceNumber) {
                 alert('Could not create payment invoice. Please try again.');
                 return;
@@ -171,15 +182,19 @@ const Trips = () => {
                 publicKey: IPAY_PUBLIC_KEY,
                 invoiceNumber,
                 locale: window.IremboPay.locale.EN,
-                callback: async (err, resp) => {
+                callback: async (err) => {
                     setPayingTripId(null);
                     if (!err) {
-                        try {
-                            await api.completePayment(paymentId, invoiceNumber);
-                            await fetchMyTrips();
+                        const outcome = await waitForTripPaymentCompleted(tripId);
+                        await fetchMyTrips();
+                        if (outcome === 'COMPLETED') {
                             alert('Payment successful!');
-                        } catch (e) {
-                            alert(e.message || 'Payment recorded but update failed.');
+                        } else if (outcome === 'FAILED') {
+                            alert('Payment was recorded as failed.');
+                        } else {
+                            alert(
+                                'Payment is processing. If your balance does not update shortly, refresh this page.'
+                            );
                         }
                     } else {
                         alert('Payment failed or was cancelled.');

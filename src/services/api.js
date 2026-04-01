@@ -195,11 +195,19 @@ class ApiService {
     });
   }
 
-  async createInvoiceForAmount(amount, address) {
+  async createInvoiceForAmount(amount, address, vehicleRef) {
     return this.request('/payments/create-invoice-for-amount', {
       method: 'POST',
-      body: JSON.stringify({ amount: Number(amount), address: address || undefined }),
+      body: JSON.stringify({
+        amount: Number(amount),
+        address: address || undefined,
+        vehicleRef: vehicleRef || undefined,
+      }),
     });
+  }
+
+  async getRentalIntent(intentId) {
+    return this.request(`/payments/rental-intent/${encodeURIComponent(intentId)}`);
   }
 
   async completePayment(paymentId, transactionRef) {
