@@ -170,13 +170,12 @@ function AdminSubscriptionView() {
 }
 
 const Subscriptions = () => {
-    const { isDriver, isAdmin } = useAuth();
-    if (isDriver) return <DriverSubscriptionView />;
+    const { isAdmin } = useAuth();
     if (isAdmin) return <AdminSubscriptionView />;
     return (
         <div className="min-h-screen bg-gray-50">
             <Header title="Subscription" subtitle="Not available for your role" />
-            <div className="p-8 text-center text-gray-600">Subscription is for drivers and admins.</div>
+            <div className="p-8 text-center text-gray-600">Subscription management is available for admins only.</div>
         </div>
     );
 };

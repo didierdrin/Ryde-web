@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, query, where, writeBatch } from 'firebase/firestore';
 import Header from '../components/Header';
-import { CheckCircle, Clock, Truck, FileText, User } from 'lucide-react';
+import { CheckCircle, Clock, Truck, FileText, User, Shield } from 'lucide-react';
 
 const Drivers = () => {
     const { isAdmin } = useAuth();
@@ -73,13 +73,22 @@ const Drivers = () => {
         fetchDrivers();
     }, []);
 
-    const toggleApproval = async (driverId, currentStatus) => {
+    const toggleApproval = async (driverId, currentStatus, userId) => {
         try {
             const driverRef = doc(db, 'vehicles', driverId);
             await updateDoc(driverRef, {
                 approved: !currentStatus
             });
-            // Optimistic update
+
+            if (!currentStatus && userId) {
+                const userQuery = query(collection(db, 'users'), where('phoneNumber', '==', userId));
+                const userSnapshot = await getDocs(userQuery);
+                if (!userSnapshot.empty) {
+                    const userDoc = userSnapshot.docs[0];
+                    await updateDoc(userDoc.ref, { userType: 'DRIVER' });
+                }
+            }
+
             setDrivers(prev => prev.map(d =>
                 d.id === driverId ? { ...d, approved: !currentStatus } : d
             ));
@@ -151,7 +160,7 @@ const Drivers = () => {
 
                                     <div className="flex gap-2 pt-2 border-t border-gray-100">
                                         <button
-                                            onClick={() => toggleApproval(driver.id, driver.approved)}
+                                            onClick={() => toggleApproval(driver.id, driver.approved, driver.userId)}
                                             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${driver.approved
                                                 ? 'bg-red-50 text-red-600 hover:bg-red-100'
                                                 : 'bg-green-50 text-green-600 hover:bg-green-100'

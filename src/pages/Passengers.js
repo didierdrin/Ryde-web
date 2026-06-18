@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, query, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, Timestamp, updateDoc, doc } from 'firebase/firestore';
 import Header from '../components/Header';
-import { User, Search, MapPin, Plus, Navigation } from 'lucide-react';
+import { User, Search, MapPin, Plus, Navigation, Shield } from 'lucide-react';
+
+const ROLES = [
+    { value: 'PASSENGER', label: 'Passenger' },
+    { value: 'DRIVER', label: 'Driver' },
+];
 
 const Passengers = () => {
     const { isAdmin } = useAuth();
@@ -14,7 +19,6 @@ const Passengers = () => {
     const [isRideModalOpen, setIsRideModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
 
-    // Ride Form State
     const [rideForm, setRideForm] = useState({
         pickup: '',
         dropoff: '',
@@ -23,8 +27,6 @@ const Passengers = () => {
     const fetchPassengers = async () => {
         try {
             setLoading(true);
-            // Fetch users. Assuming role logic isn't strictly defined in 'users', we fetch all users.
-            // If there's a type field, we'd filter. The schema doesn't show a type.
             const q = query(collection(db, 'users'));
             const querySnapshot = await getDocs(q);
             const users = querySnapshot.docs.map(doc => ({
@@ -60,11 +62,11 @@ const Passengers = () => {
 
         try {
             await addDoc(collection(db, 'requestRiders'), {
-                rider: selectedUser.phoneNumber || selectedUser.id, // Using identifier available
-                requestedBy: "admin", // Or current user
+                rider: selectedUser.phoneNumber || selectedUser.id,
+                requestedBy: "admin",
                 pickupLocation: {
                     address: rideForm.pickup,
-                    latitude: -1.9441, // Default/Mock for now unless Geocoding
+                    latitude: -1.9441,
                     longitude: 30.0619
                 },
                 dropoffLocation: {
@@ -72,7 +74,7 @@ const Passengers = () => {
                     latitude: -1.9500,
                     longitude: 30.0600
                 },
-                status: 'confirmed', // or 'requested'
+                status: 'confirmed',
                 createdAt: Timestamp.now(),
                 requestedTime: Timestamp.now(),
                 seats: 1,
@@ -98,6 +100,22 @@ const Passengers = () => {
         setIsRideModalOpen(true);
     };
 
+    const handleChangeRole = async (userId, currentRole) => {
+        const newRole = currentRole === 'DRIVER' ? 'PASSENGER' : 'DRIVER';
+        try {
+            await updateDoc(doc(db, 'users', userId), { userType: newRole });
+            setPassengers(prev => prev.map(p =>
+                p.id === userId ? { ...p, userType: newRole } : p
+            ));
+            setFilteredPassengers(prev => prev.map(p =>
+                p.id === userId ? { ...p, userType: newRole } : p
+            ));
+        } catch (error) {
+            console.error("Error updating role:", error);
+            alert("Failed to update role.");
+        }
+    };
+
     if (!isAdmin) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -112,7 +130,6 @@ const Passengers = () => {
             <Header title="Passengers" subtitle="Manage Users & Create Rides" />
 
             <div className="p-6">
-                {/* Search & Filter */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex gap-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-3.5 text-gray-400" size={20} />
@@ -126,7 +143,6 @@ const Passengers = () => {
                     </div>
                 </div>
 
-                {/* Users Grid */}
                 {loading ? (
                     <div className="text-center py-10">Loading passengers...</div>
                 ) : (
@@ -156,21 +172,36 @@ const Passengers = () => {
                                         <span>Joined:</span>
                                         <span>{user.joinedOn ? new Date(user.joinedOn.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
                                     </div>
+                                    <div className="flex justify-between items-center">
+                                        <span>Role:</span>
+                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${user.userType === 'DRIVER' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                            <Shield size={12} />
+                                            {user.userType === 'DRIVER' ? 'Driver' : 'Passenger'}
+                                        </span>
+                                    </div>
                                 </div>
 
-                                <button
-                                    onClick={() => openRideModal(user)}
-                                    className="w-full py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <Plus size={18} /> New Ride Request
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleChangeRole(user.id, user.userType)}
+                                        className="flex-1 py-2 bg-purple-50 text-purple-600 rounded-lg font-medium hover:bg-purple-100 transition-colors flex items-center justify-center gap-1"
+                                    >
+                                        <Shield size={16} />
+                                        {user.userType === 'DRIVER' ? 'Make Passenger' : 'Make Driver'}
+                                    </button>
+                                    <button
+                                        onClick={() => openRideModal(user)}
+                                        className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <Plus size={18} /> New Ride Request
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Create Ride Modal */}
             {isRideModalOpen && selectedUser && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">

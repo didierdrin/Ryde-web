@@ -20,12 +20,12 @@ const Sidebar = ({ isCollapsed, toggleSidebar }) => {
 
     const baseItems = [
         { to: '/app', icon: LayoutDashboard, label: 'Dashboard', roles: ['PASSENGER', 'DRIVER', 'ADMIN'] },
-        { to: '/app/trips', icon: Route, label: 'Trips', roles: ['PASSENGER', 'DRIVER', 'ADMIN'] },
-        { to: '/app/rides', icon: Car, label: 'Rides', roles: ['PASSENGER', 'ADMIN'] },
-        { to: '/app/rentals', icon: MapPin, label: 'Rentals', roles: ['PASSENGER', 'ADMIN'] },
+        { to: '/app/trips', icon: Route, label: 'Trips', roles: ['ADMIN'] },
+        { to: '/app/rides', icon: Car, label: 'Rides', roles: ['ADMIN'] },
+        { to: '/app/rentals', icon: MapPin, label: 'Rentals', roles: ['ADMIN'] },
         { to: '/app/drivers', icon: Users, label: 'Drivers', roles: ['ADMIN'] },
         { to: '/app/passengers', icon: User, label: 'Passengers', roles: ['ADMIN'] },
-        { to: '/app/subscription', icon: Crown, label: 'Subscription', roles: ['DRIVER', 'ADMIN'] },
+        { to: '/app/subscription', icon: Crown, label: 'Subscription', roles: ['ADMIN'] },
     ];
 
     const navItems = baseItems.filter((item) => {
