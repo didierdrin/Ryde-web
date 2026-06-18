@@ -100,6 +100,10 @@ class ApiService {
     return this.request(`/trips/${tripId}`);
   }
 
+  async getTripLocations(tripId) {
+    return this.request(`/trips/${tripId}/locations`);
+  }
+
   async getAvailableTrips(latitude, longitude) {
     return this.request(`/trips/available?latitude=${latitude}&longitude=${longitude}`);
   }

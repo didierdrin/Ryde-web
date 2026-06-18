@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { getRouteDistanceKm, geocodeAddress, estimateFare } from '../services/googleMaps';
+import { normalizeTrip, isTrackableStatus, tripIdOf } from '../utils/tripUtils';
 import Header from '../components/Header';
 import { MapPin, Loader, Route, X, CheckCircle, Navigation } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
@@ -18,6 +19,8 @@ const statusColors = {
 
 const IPAY_PUBLIC_KEY = process.env.REACT_APP_IPAY_PUBLIC_KEY || '';
 
+const TRACKABLE = isTrackableStatus;
+
 async function waitForTripPaymentCompleted(tripId, maxMs = 45000) {
     const start = Date.now();
     while (Date.now() - start < maxMs) {
@@ -29,32 +32,92 @@ async function waitForTripPaymentCompleted(tripId, maxMs = 45000) {
     return 'TIMEOUT';
 }
 
-const TripMap = ({ trip, onClose }) => {
+const TripMap = ({ trip: rawTrip, onClose, isPassenger, isDriver }) => {
+    const trip = normalizeTrip(rawTrip);
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script-trips',
         googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     });
 
+    const [liveLocations, setLiveLocations] = useState(null);
+    const watchIdRef = useRef(null);
+    const tracking = TRACKABLE(trip?.status);
+
     const pickup = trip?.pickupLatitude != null
-        ? { lat: trip.pickupLatitude, lng: trip.pickupLongitude }
+        ? { lat: Number(trip.pickupLatitude), lng: Number(trip.pickupLongitude) }
         : null;
     const dest = trip?.destinationLatitude != null
-        ? { lat: trip.destinationLatitude, lng: trip.destinationLongitude }
+        ? { lat: Number(trip.destinationLatitude), lng: Number(trip.destinationLongitude) }
         : null;
     const center = pickup || dest || KIGALI;
 
+    useEffect(() => {
+        if (!trip?.tripId || !tracking) return undefined;
+
+        let cancelled = false;
+
+        const poll = async () => {
+            try {
+                const data = await api.getTripLocations(trip.tripId);
+                if (!cancelled) setLiveLocations(data);
+            } catch (_) {}
+        };
+
+        poll();
+        const interval = setInterval(poll, 4000);
+
+        if (navigator.geolocation) {
+            watchIdRef.current = navigator.geolocation.watchPosition(
+                (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    if (isDriver) {
+                        api.updateDriverLocation(latitude, longitude).catch(() => {});
+                    } else if (isPassenger) {
+                        api.updatePassengerLocation(latitude, longitude).catch(() => {});
+                    }
+                },
+                () => {},
+                { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+            );
+        }
+
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+            if (watchIdRef.current != null && navigator.geolocation) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+            }
+        };
+    }, [trip?.tripId, trip?.status, tracking, isDriver, isPassenger]);
+
     if (!isLoaded || !trip) return null;
+
+    const driverPos = liveLocations?.driver
+        ? { lat: liveLocations.driver.latitude, lng: liveLocations.driver.longitude }
+        : null;
+    const passengerPos = liveLocations?.passenger
+        ? { lat: liveLocations.passenger.latitude, lng: liveLocations.passenger.longitude }
+        : null;
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden">
                 <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-gray-900">Trip: {trip.pickupAddress} → {trip.destinationAddress}</h3>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900">Trip map</h3>
+                        <p className="text-sm text-gray-600 truncate">{trip.pickupAddress} → {trip.destinationAddress}</p>
+                    </div>
                     <button type="button" onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
                         <X size={20} />
                     </button>
                 </div>
-                <div className="h-80 w-full">
+                <div className="h-80 w-full relative">
+                    {tracking && (
+                        <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-green-600 text-white text-xs font-medium px-2.5 py-1 rounded-full shadow">
+                            <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                            Live tracking
+                        </div>
+                    )}
                     <GoogleMap
                         mapContainerStyle={{ width: '100%', height: '100%' }}
                         center={center}
@@ -63,6 +126,20 @@ const TripMap = ({ trip, onClose }) => {
                     >
                         {pickup && <Marker position={pickup} label="A" />}
                         {dest && <Marker position={dest} label="B" />}
+                        {driverPos && (
+                            <Marker
+                                position={driverPos}
+                                label="D"
+                                title={liveLocations.driver?.name || 'Driver'}
+                            />
+                        )}
+                        {passengerPos && (
+                            <Marker
+                                position={passengerPos}
+                                label="P"
+                                title={liveLocations.passenger?.name || 'Passenger'}
+                            />
+                        )}
                         {pickup && dest && (
                             <Polyline
                                 path={[pickup, dest]}
@@ -101,7 +178,7 @@ const Trips = () => {
     const fetchMyTrips = useCallback(async () => {
         try {
             const res = await api.getTrips(statusFilter || null);
-            setTrips(res.trips || []);
+            setTrips((res.trips || []).map(normalizeTrip));
         } catch (e) {
             console.error(e);
             setTrips([]);
@@ -362,26 +439,28 @@ const Trips = () => {
                             <Route size={20} /> Available trips (near you)
                         </h3>
                         <div className="space-y-3">
-                            {availableTrips.map((t) => (
+                            {availableTrips.map((t) => {
+                                const nt = normalizeTrip(t);
+                                return (
                                 <div
-                                    key={t.tripId}
+                                    key={tripIdOf(nt)}
                                     className="flex flex-wrap items-center justify-between gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
                                 >
                                     <div>
-                                        <p className="font-medium text-gray-900">{t.pickupAddress} → {t.destinationAddress}</p>
-                                        <p className="text-sm text-gray-500">RWF {t.fare ?? 0} • {formatDate(t.requestTime)}</p>
+                                        <p className="font-medium text-gray-900">{nt.pickupAddress} → {nt.destinationAddress}</p>
+                                        <p className="text-sm text-gray-500">RWF {nt.fare ?? 0} • {formatDate(nt.requestTime)}</p>
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={() => handleAccept(t.tripId)}
-                                        disabled={acceptingId === t.tripId}
+                                        onClick={() => handleAccept(tripIdOf(nt))}
+                                        disabled={acceptingId === tripIdOf(nt)}
                                         className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
                                     >
-                                        {acceptingId === t.tripId ? <Loader size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                                        {acceptingId === tripIdOf(nt) ? <Loader size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                                         Accept
                                     </button>
                                 </div>
-                            ))}
+                            );})}
                         </div>
                     </div>
                 )}
@@ -457,7 +536,12 @@ const Trips = () => {
             </div>
 
             {selectedTrip && (
-                <TripMap trip={selectedTrip} onClose={() => setSelectedTrip(null)} />
+                <TripMap
+                    trip={selectedTrip}
+                    onClose={() => setSelectedTrip(null)}
+                    isPassenger={isPassenger}
+                    isDriver={isDriver}
+                />
             )}
         </div>
     );
