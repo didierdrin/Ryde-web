@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { collection, getDocs, updateDoc, doc, query, where, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
 import Header from '../components/Header';
-import { CheckCircle, Clock, Truck, FileText, User, Shield } from 'lucide-react';
+import { CheckCircle, Clock, Truck, FileText, User } from 'lucide-react';
 
 const Drivers = () => {
     const { isAdmin } = useAuth();

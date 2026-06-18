@@ -5,11 +5,6 @@ import { collection, getDocs, addDoc, query, Timestamp, updateDoc, doc } from 'f
 import Header from '../components/Header';
 import { User, Search, MapPin, Plus, Navigation, Shield } from 'lucide-react';
 
-const ROLES = [
-    { value: 'PASSENGER', label: 'Passenger' },
-    { value: 'DRIVER', label: 'Driver' },
-];
-
 const Passengers = () => {
     const { isAdmin } = useAuth();
     const [passengers, setPassengers] = useState([]);

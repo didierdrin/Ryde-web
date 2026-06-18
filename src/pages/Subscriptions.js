@@ -170,8 +170,9 @@ function AdminSubscriptionView() {
 }
 
 const Subscriptions = () => {
-    const { isAdmin } = useAuth();
+    const { isAdmin, isDriver } = useAuth();
     if (isAdmin) return <AdminSubscriptionView />;
+    if (isDriver) return <DriverSubscriptionView />;
     return (
         <div className="min-h-screen bg-gray-50">
             <Header title="Subscription" subtitle="Not available for your role" />
