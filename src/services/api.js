@@ -1,5 +1,9 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
-console.log('API_BASE_URL:', API_BASE_URL);
+// Explicit REACT_APP_API_URL wins (e.g. production Railway while running CRA locally).
+// Otherwise use relative `/api` so setupProxy.js can forward to a local backend.
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+if (process.env.NODE_ENV === 'development') {
+  console.log('[Ryde API]', API_BASE_URL);
+}
 
 class ApiService {
   constructor() {

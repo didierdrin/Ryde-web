@@ -140,6 +140,7 @@ function AdminLiveMapView() {
     const [searchController, setSearchController] = useState(null);
     const [selectedLocation, setSelectedLocation] = useState(null);
     const [activeRides, setActiveRides] = useState([]);
+    const [apiTrips, setApiTrips] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedRide, setSelectedRide] = useState(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -165,6 +166,50 @@ function AdminLiveMapView() {
         });
         return () => unsubscribe();
     }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadApiTrips = async () => {
+            try {
+                const res = await api.getTrips('REQUESTED');
+                if (!cancelled) {
+                    setApiTrips(res.trips || []);
+                }
+            } catch (err) {
+                console.error('Failed to load API trips for admin map:', err);
+                if (!cancelled) setApiTrips([]);
+            }
+        };
+        loadApiTrips();
+        const interval = setInterval(loadApiTrips, 15000);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, []);
+
+    const poolRides = activeRides;
+    const instantTrips = apiTrips.map((trip) => ({
+        id: trip.trip_id || trip.tripId,
+        source: 'api',
+        user: trip.passenger_name || trip.passengerName || 'Passenger',
+        pickupLocation: {
+            address: trip.pickup_address || trip.pickupAddress,
+            latitude: Number(trip.pickup_latitude ?? trip.pickupLatitude),
+            longitude: Number(trip.pickup_longitude ?? trip.pickupLongitude),
+        },
+        dropoffLocation: {
+            address: trip.destination_address || trip.destinationAddress,
+            latitude: Number(trip.destination_latitude ?? trip.destinationLatitude),
+            longitude: Number(trip.destination_longitude ?? trip.destinationLongitude),
+        },
+        pricePerSeat: trip.fare,
+        emptySeat: 1,
+        pending: (trip.status || 'REQUESTED') === 'REQUESTED',
+        isRideStarted: ['ACCEPTED', 'IN_PROGRESS'].includes(trip.status),
+        status: trip.status || 'REQUESTED',
+    }));
+    const allRides = [...instantTrips, ...poolRides.map((ride) => ({ ...ride, source: 'firebase' }))];
 
     const onLoad = useCallback((mapInstance) => setMap(mapInstance), []);
     const onUnmount = useCallback(() => setMap(null), []);
@@ -254,9 +299,9 @@ function AdminLiveMapView() {
                     onUnmount={onUnmount}
                     options={{ zoomControl: false, streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
                 >
-                    {activeRides.map(ride => (
+                    {allRides.map(ride => (
                         <Marker
-                            key={ride.id}
+                            key={`${ride.source || 'ride'}-${ride.id}`}
                             position={{
                                 lat: ride.pickupLocation?.latitude ?? 0,
                                 lng: ride.pickupLocation?.longitude ?? 0
@@ -299,17 +344,17 @@ function AdminLiveMapView() {
 
                 <div className="absolute top-20 left-4 w-80 bg-white rounded-lg shadow-lg max-h-[calc(100vh-140px)] overflow-hidden flex flex-col">
                     <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                        <h3 className="text-lg font-bold text-gray-900">Active Rides ({activeRides.length})</h3>
+                        <h3 className="text-lg font-bold text-gray-900">Active Rides ({allRides.length})</h3>
                     </div>
                     <div className="overflow-y-auto flex-1">
                         {loading ? (
                             <div className="p-4 text-center text-gray-500">Loading…</div>
-                        ) : activeRides.length === 0 ? (
+                        ) : allRides.length === 0 ? (
                             <div className="p-4 text-center text-gray-500">No active rides.</div>
                         ) : (
-                            activeRides.map(ride => (
+                            allRides.map(ride => (
                                 <div
-                                    key={ride.id}
+                                    key={`${ride.source || 'ride'}-${ride.id}`}
                                     onClick={() => {
                                         setSelectedRide(ride);
                                         map?.panTo({
@@ -320,9 +365,16 @@ function AdminLiveMapView() {
                                     className={`p-4 border-b border-gray-200 hover:bg-gray-50 cursor-pointer ${selectedRide?.id === ride.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}
                                 >
                                     <div className="flex justify-between items-center mb-2">
-                                        <span className="text-sm font-medium text-gray-600">#{ride.id?.slice(0, 8)}</span>
-                                        <span className={`px-2 py-1 text-xs rounded-full font-medium ${ride.isRideStarted ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                                            {ride.isRideStarted ? 'Started' : 'Pending'}
+                                        <span className="text-sm font-medium text-gray-600">#{String(ride.id || '').slice(0, 8)}</span>
+                                        <span className="flex items-center gap-1">
+                                            {ride.source === 'api' && (
+                                                <span className="px-2 py-0.5 text-[10px] rounded-full font-medium bg-indigo-100 text-indigo-700">
+                                                    Instant
+                                                </span>
+                                            )}
+                                            <span className={`px-2 py-1 text-xs rounded-full font-medium ${ride.isRideStarted ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                                                {ride.isRideStarted ? 'Started' : 'Pending'}
+                                            </span>
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2 mb-3">
