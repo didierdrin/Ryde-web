@@ -90,6 +90,10 @@ class ApiService {
     return this.request('/auth/profile');
   }
 
+  async getAdminReferralCode() {
+    return this.request('/auth/admin-referral-code');
+  }
+
   logout() {
     this.setToken(null);
   }

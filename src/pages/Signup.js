@@ -4,8 +4,6 @@ import { Eye, EyeOff } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-const ADMIN_REFERRAL_CODE = '1111';
-
 const Signup = () => {
     const navigate = useNavigate();
     const { refreshUser } = useAuth();
@@ -38,10 +36,6 @@ const Signup = () => {
 
         if (!formData.referralCode.trim()) {
             setError('Referral code is required for admin registration');
-            return;
-        }
-        if (formData.referralCode.trim() !== ADMIN_REFERRAL_CODE) {
-            setError('Invalid referral code');
             return;
         }
 
