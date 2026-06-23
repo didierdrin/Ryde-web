@@ -266,6 +266,52 @@ class ApiService {
   async getRatingsByUser(userId) {
     return this.request(`/ratings/user/${userId}`);
   }
+
+  // Rentals
+  async getRentalVehicles(all = false) {
+    const url = all ? '/rentals?all=true' : '/rentals';
+    return this.request(url);
+  }
+
+  async createRentalVehicle(vehicleData) {
+    return this.request('/rentals', {
+      method: 'POST',
+      body: JSON.stringify(vehicleData),
+    });
+  }
+
+  // Auctions
+  async getAuctionListings(type = null) {
+    const url = type ? `/auctions?type=${encodeURIComponent(type)}` : '/auctions';
+    return this.request(url);
+  }
+
+  async createAuctionListing(listingData) {
+    return this.request('/auctions', {
+      method: 'POST',
+      body: JSON.stringify(listingData),
+    });
+  }
+
+  async purchaseAuctionListing(listingId) {
+    return this.request(`/auctions/${listingId}/purchase`, { method: 'POST' });
+  }
+
+  // Mechanics
+  async getMechanics(latitude, longitude, radius = 15) {
+    let url = '/mechanics';
+    if (latitude != null && longitude != null) {
+      url += `?latitude=${latitude}&longitude=${longitude}&radius=${radius}`;
+    }
+    return this.request(url);
+  }
+
+  // Nearby drivers (passenger)
+  async getNearbyDrivers(latitude, longitude, radius = 10) {
+    return this.request(
+      `/drivers/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}`
+    );
+  }
 }
 
 const apiService = new ApiService();

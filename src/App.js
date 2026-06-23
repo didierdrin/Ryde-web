@@ -11,6 +11,9 @@ import Passengers from './pages/Passengers';
 import Subscriptions from './pages/Subscriptions';
 import Trips from './pages/Trips';
 import Rentals from './pages/Rentals';
+import Auctions from './pages/Auctions';
+import Mechanics from './pages/Mechanics';
+import AvailableDrivers from './pages/AvailableDrivers';
 import Search from './pages/Search';
 import Profile from './pages/Profile';
 import api from './services/api';
@@ -44,6 +47,9 @@ function App() {
             <Route path="rides" element={<LiveMap />} />
             <Route path="trips" element={<Trips />} />
             <Route path="rentals" element={<Rentals />} />
+            <Route path="auctions" element={<Auctions />} />
+            <Route path="mechanics" element={<Mechanics />} />
+            <Route path="available-drivers" element={<AvailableDrivers />} />
             <Route path="search" element={<Search />} />
             <Route path="drivers" element={<Drivers />} />
             <Route path="passengers" element={<Passengers />} />

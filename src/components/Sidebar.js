@@ -11,6 +11,9 @@ import {
     ChevronLeft,
     MapPin,
     Route,
+    Gavel,
+    Wrench,
+    UserSearch,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -20,10 +23,13 @@ const Sidebar = ({ isCollapsed, toggleSidebar }) => {
 
     const baseItems = [
         { to: '/app', icon: LayoutDashboard, label: 'Dashboard', roles: ['PASSENGER', 'DRIVER', 'ADMIN'] },
+        { to: '/app/rentals', icon: MapPin, label: 'Rentals', roles: ['PASSENGER', 'ADMIN'] },
+        { to: '/app/auctions', icon: Gavel, label: 'Auction', roles: ['PASSENGER', 'DRIVER', 'ADMIN'] },
+        { to: '/app/mechanics', icon: Wrench, label: 'Mechanics', roles: ['PASSENGER', 'DRIVER', 'ADMIN'] },
+        { to: '/app/available-drivers', icon: UserSearch, label: 'Drivers', roles: ['PASSENGER'] },
         { to: '/app/trips', icon: Route, label: 'Trips', roles: ['ADMIN'] },
         { to: '/app/rides', icon: Car, label: 'Rides', roles: ['ADMIN'] },
-        { to: '/app/rentals', icon: MapPin, label: 'Rentals', roles: ['ADMIN'] },
-        { to: '/app/drivers', icon: Users, label: 'Drivers', roles: ['ADMIN'] },
+        { to: '/app/drivers', icon: Users, label: 'Driver Admin', roles: ['ADMIN'] },
         { to: '/app/passengers', icon: User, label: 'Passengers', roles: ['ADMIN'] },
         { to: '/app/subscription', icon: Crown, label: 'Subscription', roles: ['ADMIN'] },
     ];

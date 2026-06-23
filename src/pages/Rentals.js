@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import Header from '../components/Header';
-import { Car, Plus, CreditCard, Loader } from 'lucide-react';
+import { Car, Plus, CreditCard, Loader, ImageIcon } from 'lucide-react';
 
 const IPAY_PUBLIC_KEY = process.env.REACT_APP_IPAY_PUBLIC_KEY || '';
+
+const DEFAULT_CAR_IMAGE = 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&q=80';
 
 async function waitForRentalIntentCompleted(intentId, maxMs = 45000) {
     const start = Date.now();
@@ -17,45 +19,54 @@ async function waitForRentalIntentCompleted(intentId, maxMs = 45000) {
     return 'TIMEOUT';
 }
 
-// Placeholder in-memory list for demo (no rental API in backend yet)
-const MOCK_VEHICLES = [
-    { id: '1', make: 'Toyota', model: 'RAV4', year: 2022, color: 'White', type: 'SUV', dailyRate: 35000 },
-    { id: '2', make: 'Honda', model: 'CR-V', year: 2021, color: 'Silver', type: 'SUV', dailyRate: 32000 },
-    { id: '3', make: 'Toyota', model: 'Corolla', year: 2023, color: 'Black', type: 'SEDAN', dailyRate: 25000 },
-];
-
 const Rentals = () => {
     const { isPassenger, isAdmin } = useAuth();
     const [vehicles, setVehicles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [newVehicle, setNewVehicle] = useState({
-        make: '', model: '', year: '', color: '', vehicleType: 'SEDAN', dailyRate: ''
+        make: '', model: '', year: '', color: '', vehicleType: 'SEDAN', dailyRate: '', imageUrl: '', description: ''
     });
     const [payingVehicleId, setPayingVehicleId] = useState(null);
+    const [error, setError] = useState(null);
+
+    const loadVehicles = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const { vehicles: list } = await api.getRentalVehicles(isAdmin);
+            setVehicles(list || []);
+        } catch (e) {
+            setError(e.message || 'Failed to load rental vehicles');
+            setVehicles([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        setLoading(true);
-        setTimeout(() => {
-            setVehicles([...MOCK_VEHICLES]);
-            setLoading(false);
-        }, 400);
-    }, []);
+        loadVehicles();
+    }, [isAdmin]);
 
-    const handleAddVehicle = (e) => {
+    const handleAddVehicle = async (e) => {
         e.preventDefault();
-        const v = {
-            id: String(Date.now()),
-            make: newVehicle.make,
-            model: newVehicle.model,
-            year: Number(newVehicle.year),
-            color: newVehicle.color,
-            type: newVehicle.vehicleType,
-            dailyRate: Number(newVehicle.dailyRate)
-        };
-        setVehicles(prev => [...prev, v]);
-        setNewVehicle({ make: '', model: '', year: '', color: '', vehicleType: 'SEDAN', dailyRate: '' });
-        setShowAddModal(false);
+        try {
+            const { vehicle } = await api.createRentalVehicle({
+                make: newVehicle.make,
+                model: newVehicle.model,
+                year: Number(newVehicle.year),
+                color: newVehicle.color,
+                vehicleType: newVehicle.vehicleType,
+                dailyRate: Number(newVehicle.dailyRate),
+                imageUrl: newVehicle.imageUrl || DEFAULT_CAR_IMAGE,
+                description: newVehicle.description,
+            });
+            setVehicles((prev) => [...prev, vehicle]);
+            setNewVehicle({ make: '', model: '', year: '', color: '', vehicleType: 'SEDAN', dailyRate: '', imageUrl: '', description: '' });
+            setShowAddModal(false);
+        } catch (e) {
+            alert(e.message || 'Failed to add vehicle');
+        }
     };
 
     const handleRent = async (vehicle, days = 1) => {
@@ -92,9 +103,7 @@ const Rentals = () => {
                         } else if (outcome === 'FAILED') {
                             alert('Payment was recorded as failed.');
                         } else {
-                            alert(
-                                'Payment is processing. If booking status does not update, refresh or contact support.'
-                            );
+                            alert('Payment is processing. If booking status does not update, refresh or contact support.');
                         }
                     } else {
                         alert('Payment failed or was cancelled.');
@@ -122,6 +131,10 @@ const Rentals = () => {
                     </div>
                 )}
 
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
+                )}
+
                 {isAdmin && (
                     <div className="mb-6 flex justify-end">
                         <button
@@ -135,7 +148,9 @@ const Rentals = () => {
                 )}
 
                 {loading ? (
-                    <div className="text-center py-12 text-gray-500">Loading vehicles…</div>
+                    <div className="text-center py-12 text-gray-500 flex items-center justify-center gap-2">
+                        <Loader className="animate-spin" size={20} /> Loading vehicles…
+                    </div>
                 ) : vehicles.length === 0 ? (
                     <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
                         <Car size={48} className="mx-auto text-gray-300 mb-4" />
@@ -153,24 +168,37 @@ const Rentals = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {vehicles.map((v) => (
-                            <div key={v.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col">
-                                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center mb-4">
-                                    <Car size={24} className="text-blue-600" />
+                            <div key={v.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                                <div className="h-44 bg-gray-100 relative">
+                                    <img
+                                        src={v.imageUrl || DEFAULT_CAR_IMAGE}
+                                        alt={`${v.make} ${v.model}`}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => { e.target.src = DEFAULT_CAR_IMAGE; }}
+                                    />
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-900">{v.make} {v.model}</h3>
-                                <p className="text-sm text-gray-600 mt-1">{v.year} • {v.color} • {v.type}</p>
-                                <p className="mt-4 text-xl font-semibold text-gray-900">RWF {Number(v.dailyRate).toLocaleString()} <span className="text-sm font-normal text-gray-500">/ day</span></p>
-                                {isPassenger && (
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRent(v)}
-                                        disabled={payingVehicleId === v.id}
-                                        className="mt-4 w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                                    >
-                                        {payingVehicleId === v.id ? <Loader size={18} className="animate-spin" /> : null}
-                                        Book (Pay with IremboPay)
-                                    </button>
-                                )}
+                                <div className="p-5 flex flex-col flex-1">
+                                    <h3 className="text-lg font-bold text-gray-900">{v.make} {v.model}</h3>
+                                    <p className="text-sm text-gray-600 mt-1">{v.year} • {v.color} • {v.type}</p>
+                                    {v.description && (
+                                        <p className="text-sm text-gray-500 mt-2 line-clamp-2">{v.description}</p>
+                                    )}
+                                    <p className="mt-4 text-xl font-semibold text-gray-900">
+                                        RWF {Number(v.dailyRate).toLocaleString()}{' '}
+                                        <span className="text-sm font-normal text-gray-500">/ day</span>
+                                    </p>
+                                    {isPassenger && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRent(v)}
+                                            disabled={payingVehicleId === v.id}
+                                            className="mt-4 w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {payingVehicleId === v.id ? <Loader size={18} className="animate-spin" /> : null}
+                                            Book (Pay with IremboPay)
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -178,7 +206,7 @@ const Rentals = () => {
 
                 {showAddModal && (
                     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
                             <h3 className="text-xl font-bold text-gray-900 mb-4">Add vehicle for rental</h3>
                             <form onSubmit={handleAddVehicle} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
@@ -206,8 +234,18 @@ const Rentals = () => {
                                     <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.vehicleType} onChange={e => setNewVehicle({ ...newVehicle, vehicleType: e.target.value })}>
                                         <option value="SEDAN">Sedan</option>
                                         <option value="SUV">SUV</option>
-                                        <option value="HATCHBACK">Hatchback</option>
+                                        <option value="MOTORCYCLE">Motorcycle</option>
                                     </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                                        <ImageIcon size={14} /> Image URL
+                                    </label>
+                                    <input type="url" required placeholder="https://..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.imageUrl} onChange={e => setNewVehicle({ ...newVehicle, imageUrl: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                    <textarea rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.description} onChange={e => setNewVehicle({ ...newVehicle, description: e.target.value })} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Daily rate (RWF)</label>
