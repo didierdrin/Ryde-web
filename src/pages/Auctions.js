@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import Header from '../components/Header';
@@ -23,7 +23,7 @@ const Auctions = () => {
         imageUrl: '',
     });
 
-    const loadListings = async () => {
+    const loadListings = useCallback(async () => {
         setLoading(true);
         try {
             const type = filter === 'ALL' ? null : filter;
@@ -35,11 +35,11 @@ const Auctions = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filter]);
 
     useEffect(() => {
         loadListings();
-    }, [filter]);
+    }, [loadListings]);
 
     const handleCreate = async (e) => {
         e.preventDefault();

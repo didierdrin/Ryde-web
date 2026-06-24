@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import Header from '../components/Header';
@@ -30,7 +30,7 @@ const Rentals = () => {
     const [payingVehicleId, setPayingVehicleId] = useState(null);
     const [error, setError] = useState(null);
 
-    const loadVehicles = async () => {
+    const loadVehicles = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -42,11 +42,11 @@ const Rentals = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [isAdmin]);
 
     useEffect(() => {
         loadVehicles();
-    }, [isAdmin]);
+    }, [loadVehicles]);
 
     const handleAddVehicle = async (e) => {
         e.preventDefault();
