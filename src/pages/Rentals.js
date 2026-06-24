@@ -1,23 +1,14 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { waitForRentalIntentCompleted } from '../services/paymentPolling';
 import Header from '../components/Header';
+import PaymentConfirmDialog from '../components/PaymentConfirmDialog';
 import { Car, Plus, CreditCard, Loader, ImageIcon } from 'lucide-react';
 
 const IPAY_PUBLIC_KEY = process.env.REACT_APP_IPAY_PUBLIC_KEY || '';
 
 const DEFAULT_CAR_IMAGE = 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&q=80';
-
-async function waitForRentalIntentCompleted(intentId, maxMs = 45000) {
-    const start = Date.now();
-    while (Date.now() - start < maxMs) {
-        const { intent } = await api.getRentalIntent(intentId);
-        if (intent.status === 'COMPLETED') return 'COMPLETED';
-        if (intent.status === 'FAILED') return 'FAILED';
-        await new Promise((r) => setTimeout(r, 2000));
-    }
-    return 'TIMEOUT';
-}
 
 const Rentals = () => {
     const { isPassenger, isAdmin } = useAuth();
@@ -29,6 +20,7 @@ const Rentals = () => {
     });
     const [payingVehicleId, setPayingVehicleId] = useState(null);
     const [error, setError] = useState(null);
+    const [paymentConfirm, setPaymentConfirm] = useState({ open: false, intentId: null, vehicleLabel: '' });
 
     const loadVehicles = useCallback(async () => {
         setLoading(true);
@@ -94,17 +86,14 @@ const Rentals = () => {
                 publicKey: IPAY_PUBLIC_KEY,
                 invoiceNumber,
                 locale: window.IremboPay.locale.EN,
-                callback: async (err) => {
+                callback: (err) => {
                     setPayingVehicleId(null);
                     if (!err) {
-                        const outcome = await waitForRentalIntentCompleted(intentId);
-                        if (outcome === 'COMPLETED') {
-                            alert(`Booking confirmed for ${vehicle.make} ${vehicle.model}. Payment successful!`);
-                        } else if (outcome === 'FAILED') {
-                            alert('Payment was recorded as failed.');
-                        } else {
-                            alert('Payment is processing. If booking status does not update, refresh or contact support.');
-                        }
+                        setPaymentConfirm({
+                            open: true,
+                            intentId,
+                            vehicleLabel: `${vehicle.make} ${vehicle.model}`,
+                        });
                     } else {
                         alert('Payment failed or was cancelled.');
                     }
@@ -260,6 +249,16 @@ const Rentals = () => {
                     </div>
                 )}
             </div>
+
+            <PaymentConfirmDialog
+                open={paymentConfirm.open}
+                title="Rental payment"
+                successMessage={`Booking confirmed for ${paymentConfirm.vehicleLabel}. Payment successful!`}
+                poll={paymentConfirm.intentId
+                    ? () => waitForRentalIntentCompleted(paymentConfirm.intentId)
+                    : null}
+                onClose={() => setPaymentConfirm({ open: false, intentId: null, vehicleLabel: '' })}
+            />
         </div>
     );
 };

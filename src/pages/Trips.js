@@ -2,8 +2,10 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { getRouteDistanceKm, geocodeAddress, estimateFare } from '../services/googleMaps';
+import { waitForTripPaymentCompleted } from '../services/paymentPolling';
 import { normalizeTrip, isTrackableStatus, tripIdOf } from '../utils/tripUtils';
 import Header from '../components/Header';
+import PaymentConfirmDialog from '../components/PaymentConfirmDialog';
 import { MapPin, Loader, Route, X, CheckCircle, Navigation } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 
@@ -17,20 +19,15 @@ const statusColors = {
     CANCELLED: 'bg-red-100 text-red-700',
 };
 
+const paymentStatusColors = {
+    COMPLETED: 'bg-green-100 text-green-700',
+    PENDING: 'bg-amber-100 text-amber-700',
+    FAILED: 'bg-red-100 text-red-700',
+};
+
 const IPAY_PUBLIC_KEY = process.env.REACT_APP_IPAY_PUBLIC_KEY || '';
 
 const TRACKABLE = isTrackableStatus;
-
-async function waitForTripPaymentCompleted(tripId, maxMs = 45000) {
-    const start = Date.now();
-    while (Date.now() - start < maxMs) {
-        const { payment } = await api.getPaymentByTrip(tripId);
-        if (payment.payment_status === 'COMPLETED') return 'COMPLETED';
-        if (payment.payment_status === 'FAILED') return 'FAILED';
-        await new Promise((r) => setTimeout(r, 2000));
-    }
-    return 'TIMEOUT';
-}
 
 const TripMap = ({ trip: rawTrip, onClose, isPassenger, isDriver }) => {
     const trip = normalizeTrip(rawTrip);
@@ -174,18 +171,42 @@ const Trips = () => {
     const [requestLoading, setRequestLoading] = useState(false);
     const [requestError, setRequestError] = useState('');
     const [payingTripId, setPayingTripId] = useState(null);
+    const [paymentByTrip, setPaymentByTrip] = useState({});
+    const [paymentConfirm, setPaymentConfirm] = useState({ open: false, tripId: null });
+
+    const loadPaymentStatuses = useCallback(async (tripList) => {
+        if (!isPassenger || !tripList?.length) {
+            setPaymentByTrip({});
+            return;
+        }
+        const entries = await Promise.all(
+            tripList.map(async (t) => {
+                try {
+                    const { payment } = await api.getPaymentByTrip(t.tripId);
+                    const status = (payment?.payment_status || payment?.paymentStatus || 'PENDING').toUpperCase();
+                    return [t.tripId, status];
+                } catch {
+                    return [t.tripId, null];
+                }
+            })
+        );
+        setPaymentByTrip(Object.fromEntries(entries));
+    }, [isPassenger]);
 
     const fetchMyTrips = useCallback(async () => {
         try {
             const res = await api.getTrips(statusFilter || null);
-            setTrips((res.trips || []).map(normalizeTrip));
+            const list = (res.trips || []).map(normalizeTrip);
+            setTrips(list);
+            await loadPaymentStatuses(list);
         } catch (e) {
             console.error(e);
             setTrips([]);
+            setPaymentByTrip({});
         } finally {
             setLoading(false);
         }
-    }, [statusFilter]);
+    }, [statusFilter, loadPaymentStatuses]);
 
     useEffect(() => {
         setLoading(true);
@@ -259,20 +280,10 @@ const Trips = () => {
                 publicKey: IPAY_PUBLIC_KEY,
                 invoiceNumber,
                 locale: window.IremboPay.locale.EN,
-                callback: async (err) => {
+                callback: (err) => {
                     setPayingTripId(null);
                     if (!err) {
-                        const outcome = await waitForTripPaymentCompleted(tripId);
-                        await fetchMyTrips();
-                        if (outcome === 'COMPLETED') {
-                            alert('Payment successful!');
-                        } else if (outcome === 'FAILED') {
-                            alert('Payment was recorded as failed.');
-                        } else {
-                            alert(
-                                'Payment is processing. If your balance does not update shortly, refresh this page.'
-                            );
-                        }
+                        setPaymentConfirm({ open: true, tripId });
                     } else {
                         alert('Payment failed or was cancelled.');
                     }
@@ -485,6 +496,9 @@ const Trips = () => {
                                         <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold">Distance</th>
                                         <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold">Status</th>
                                         <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold">Fare</th>
+                                        {isPassenger && (
+                                            <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold">Payment</th>
+                                        )}
                                         <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold">Action</th>
                                     </tr>
                                 </thead>
@@ -504,6 +518,17 @@ const Trips = () => {
                                                 </span>
                                             </td>
                                             <td className="p-4 font-medium text-gray-900">RWF {t.fare ?? 0}</td>
+                                            {isPassenger && (
+                                                <td className="p-4">
+                                                    {paymentByTrip[t.tripId] ? (
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${paymentStatusColors[paymentByTrip[t.tripId]] || 'bg-gray-100 text-gray-700'}`}>
+                                                            {paymentByTrip[t.tripId] === 'COMPLETED' ? 'Paid' : paymentByTrip[t.tripId]}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-400 text-sm">—</span>
+                                                    )}
+                                                </td>
+                                            )}
                                             <td className="p-4">
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     <button
@@ -513,7 +538,7 @@ const Trips = () => {
                                                     >
                                                         <MapPin size={16} /> Map
                                                     </button>
-                                                    {isPassenger && t.status !== 'CANCELLED' && (
+                                                    {isPassenger && t.status !== 'CANCELLED' && paymentByTrip[t.tripId] !== 'COMPLETED' && (
                                                         <button
                                                             type="button"
                                                             onClick={() => handlePayWithIremboPay(t.tripId)}
@@ -543,6 +568,17 @@ const Trips = () => {
                     isDriver={isDriver}
                 />
             )}
+
+            <PaymentConfirmDialog
+                open={paymentConfirm.open}
+                title="Trip payment"
+                successMessage="Payment successful! Your trip is paid."
+                poll={paymentConfirm.tripId
+                    ? () => waitForTripPaymentCompleted(paymentConfirm.tripId)
+                    : null}
+                onOutcome={() => fetchMyTrips()}
+                onClose={() => setPaymentConfirm({ open: false, tripId: null })}
+            />
         </div>
     );
 };
