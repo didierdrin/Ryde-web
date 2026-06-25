@@ -71,7 +71,7 @@ const PaymentConfirmDialog = ({ open, title, poll, successMessage, onClose, onOu
           <button
             type="button"
             onClick={onClose}
-            className="mt-2 w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+            className="mt-2 w-full py-2.5 btn-outline-primary rounded-lg"
           >
             OK
           </button>

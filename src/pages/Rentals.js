@@ -4,20 +4,109 @@ import api from '../services/api';
 import { waitForRentalIntentCompleted } from '../services/paymentPolling';
 import Header from '../components/Header';
 import PaymentConfirmDialog from '../components/PaymentConfirmDialog';
-import { Car, Plus, CreditCard, Loader, ImageIcon } from 'lucide-react';
+import {
+    Car,
+    Plus,
+    CreditCard,
+    Loader,
+    ImageIcon,
+    X,
+    MapPin,
+    Users,
+    Fuel,
+    Settings2,
+    User,
+} from 'lucide-react';
 
 const IPAY_PUBLIC_KEY = process.env.REACT_APP_IPAY_PUBLIC_KEY || '';
 
 const DEFAULT_CAR_IMAGE = 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&q=80';
+
+const EMPTY_VEHICLE = {
+    make: '',
+    model: '',
+    year: '',
+    color: '',
+    vehicleType: 'SEDAN',
+    dailyRateWithDriver: '',
+    dailyRateWithoutDriver: '',
+    pickupLocation: '',
+    transmission: 'AUTOMATIC',
+    fuelType: 'PETROL',
+    ownerName: '',
+    seats: '',
+    imageUrl: '',
+    description: '',
+};
+
+const formatRwf = (value) => {
+    if (value == null || Number.isNaN(Number(value))) return '—';
+    return `RWF ${Number(value).toLocaleString()}`;
+};
+
+const formatLabel = (value) => {
+    if (!value) return '—';
+    return String(value)
+        .toLowerCase()
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+};
+
+const displayDailyRate = (vehicle) =>
+    vehicle.dailyRateWithoutDriver ?? vehicle.dailyRate ?? 0;
+
+const isVehicleAvailable = (vehicle) => vehicle?.isAvailable !== false;
+
+const vehicleToEditForm = (vehicle) => ({
+    id: vehicle.id,
+    make: vehicle.make || '',
+    model: vehicle.model || '',
+    year: vehicle.year ?? '',
+    color: vehicle.color || '',
+    vehicleType: vehicle.type || vehicle.vehicleType || 'SEDAN',
+    dailyRateWithDriver: vehicle.dailyRateWithDriver ?? '',
+    dailyRateWithoutDriver: vehicle.dailyRateWithoutDriver ?? vehicle.dailyRate ?? '',
+    pickupLocation: vehicle.pickupLocation || '',
+    transmission: vehicle.transmission || 'AUTOMATIC',
+    fuelType: vehicle.fuelType || 'PETROL',
+    ownerName: vehicle.ownerName || '',
+    seats: vehicle.seats ?? '',
+    imageUrl: vehicle.imageUrl || '',
+    description: vehicle.description || '',
+    isAvailable: isVehicleAvailable(vehicle),
+});
+
+const StatusBadge = ({ available, className = '' }) => (
+    <span
+        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+            available ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+        } ${className}`}
+    >
+        {available ? 'Available' : 'Rented'}
+    </span>
+);
+
+const DetailRow = ({ label, value, icon: Icon }) => (
+    <div className="flex items-start justify-between gap-4 py-3 border-b border-gray-100 last:border-0">
+        <div className="flex items-center gap-2 text-sm text-gray-500 shrink-0">
+            {Icon && <Icon size={16} className="text-gray-400" />}
+            <span>{label}</span>
+        </div>
+        <span className="text-sm font-medium text-gray-900 text-right">{value}</span>
+    </div>
+);
 
 const Rentals = () => {
     const { isPassenger, isAdmin } = useAuth();
     const [vehicles, setVehicles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
-    const [newVehicle, setNewVehicle] = useState({
-        make: '', model: '', year: '', color: '', vehicleType: 'SEDAN', dailyRate: '', imageUrl: '', description: ''
-    });
+    const [newVehicle, setNewVehicle] = useState(EMPTY_VEHICLE);
+    const [selectedVehicle, setSelectedVehicle] = useState(null);
+    const [editForm, setEditForm] = useState(null);
+    const [savingVehicle, setSavingVehicle] = useState(false);
+    const [rentWithDriver, setRentWithDriver] = useState(false);
     const [payingVehicleId, setPayingVehicleId] = useState(null);
     const [error, setError] = useState(null);
     const [paymentConfirm, setPaymentConfirm] = useState({ open: false, intentId: null, vehicleLabel: '' });
@@ -40,6 +129,51 @@ const Rentals = () => {
         loadVehicles();
     }, [loadVehicles]);
 
+    const openVehicleDetails = (vehicle) => {
+        setSelectedVehicle(vehicle);
+        setEditForm(isAdmin ? vehicleToEditForm(vehicle) : null);
+        setRentWithDriver(false);
+    };
+
+    const closeVehicleDetails = () => {
+        setSelectedVehicle(null);
+        setEditForm(null);
+        setRentWithDriver(false);
+    };
+
+    const handleSaveVehicle = async (e) => {
+        e.preventDefault();
+        if (!editForm?.id) return;
+
+        setSavingVehicle(true);
+        try {
+            const { vehicle } = await api.updateRentalVehicle(editForm.id, {
+                make: editForm.make,
+                model: editForm.model,
+                year: Number(editForm.year),
+                color: editForm.color,
+                vehicleType: editForm.vehicleType,
+                dailyRateWithDriver: Number(editForm.dailyRateWithDriver),
+                dailyRateWithoutDriver: Number(editForm.dailyRateWithoutDriver),
+                pickupLocation: editForm.pickupLocation,
+                transmission: editForm.transmission,
+                fuelType: editForm.fuelType,
+                ownerName: editForm.ownerName,
+                seats: Number(editForm.seats),
+                imageUrl: editForm.imageUrl || DEFAULT_CAR_IMAGE,
+                description: editForm.description,
+                isAvailable: editForm.isAvailable,
+            });
+            setVehicles((prev) => prev.map((v) => (v.id === vehicle.id ? vehicle : v)));
+            setSelectedVehicle(vehicle);
+            setEditForm(vehicleToEditForm(vehicle));
+        } catch (err) {
+            alert(err.message || 'Failed to update vehicle');
+        } finally {
+            setSavingVehicle(false);
+        }
+    };
+
     const handleAddVehicle = async (e) => {
         e.preventDefault();
         try {
@@ -49,19 +183,25 @@ const Rentals = () => {
                 year: Number(newVehicle.year),
                 color: newVehicle.color,
                 vehicleType: newVehicle.vehicleType,
-                dailyRate: Number(newVehicle.dailyRate),
+                dailyRateWithDriver: Number(newVehicle.dailyRateWithDriver),
+                dailyRateWithoutDriver: Number(newVehicle.dailyRateWithoutDriver),
+                pickupLocation: newVehicle.pickupLocation,
+                transmission: newVehicle.transmission,
+                fuelType: newVehicle.fuelType,
+                ownerName: newVehicle.ownerName,
+                seats: Number(newVehicle.seats),
                 imageUrl: newVehicle.imageUrl || DEFAULT_CAR_IMAGE,
                 description: newVehicle.description,
             });
             setVehicles((prev) => [...prev, vehicle]);
-            setNewVehicle({ make: '', model: '', year: '', color: '', vehicleType: 'SEDAN', dailyRate: '', imageUrl: '', description: '' });
+            setNewVehicle(EMPTY_VEHICLE);
             setShowAddModal(false);
         } catch (e) {
             alert(e.message || 'Failed to add vehicle');
         }
     };
 
-    const handleRent = async (vehicle, days = 1) => {
+    const handleRent = async (vehicle, withDriver = false, days = 1) => {
         if (!IPAY_PUBLIC_KEY) {
             alert('Payment (IremboPay) is not configured.');
             return;
@@ -70,11 +210,17 @@ const Rentals = () => {
             alert('Payment system is not ready. Please refresh and try again.');
             return;
         }
-        const amount = Number(vehicle.dailyRate) * Math.max(1, Number(days));
+
+        const rate = withDriver
+            ? (vehicle.dailyRateWithDriver ?? vehicle.dailyRate)
+            : (vehicle.dailyRateWithoutDriver ?? vehicle.dailyRate);
+        const amount = Number(rate) * Math.max(1, Number(days));
+
         if (!amount || amount <= 0) {
             alert('Invalid amount.');
             return;
         }
+
         setPayingVehicleId(vehicle.id);
         try {
             const { invoiceNumber, intentId } = await api.createInvoiceForAmount(amount, undefined, vehicle.id);
@@ -94,6 +240,7 @@ const Rentals = () => {
                             intentId,
                             vehicleLabel: `${vehicle.make} ${vehicle.model}`,
                         });
+                        closeVehicleDetails();
                     } else {
                         alert('Payment failed or was cancelled.');
                     }
@@ -104,6 +251,12 @@ const Rentals = () => {
             alert(e.message || 'Failed to start payment.');
         }
     };
+
+    const selectedRate = selectedVehicle
+        ? (rentWithDriver
+            ? (selectedVehicle.dailyRateWithDriver ?? selectedVehicle.dailyRate)
+            : (selectedVehicle.dailyRateWithoutDriver ?? selectedVehicle.dailyRate))
+        : 0;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -129,7 +282,7 @@ const Rentals = () => {
                         <button
                             type="button"
                             onClick={() => setShowAddModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                            className="flex items-center gap-2 px-4 py-2 btn-outline-primary rounded-lg"
                         >
                             <Plus size={18} /> Add vehicle for rental
                         </button>
@@ -148,7 +301,7 @@ const Rentals = () => {
                             <button
                                 type="button"
                                 onClick={() => setShowAddModal(true)}
-                                className="mt-4 text-blue-600 font-medium hover:underline"
+                                className="mt-4 btn-text-action"
                             >
                                 Add first vehicle
                             </button>
@@ -165,84 +318,347 @@ const Rentals = () => {
                                         className="w-full h-full object-cover"
                                         onError={(e) => { e.target.src = DEFAULT_CAR_IMAGE; }}
                                     />
+                                    <StatusBadge available={isVehicleAvailable(v)} className="absolute top-3 left-3" />
                                 </div>
                                 <div className="p-5 flex flex-col flex-1">
-                                    <h3 className="text-lg font-bold text-gray-900">{v.make} {v.model}</h3>
-                                    <p className="text-sm text-gray-600 mt-1">{v.year} • {v.color} • {v.type}</p>
+                                    <div className="flex items-start justify-between gap-2">
+                                        <h3 className="text-lg font-bold text-gray-900">{v.make} {v.model}</h3>
+                                        {!isAdmin && <StatusBadge available={isVehicleAvailable(v)} />}
+                                    </div>
+                                    <p className="text-sm text-gray-600 mt-1">{v.year} • {v.color} • {formatLabel(v.type)}</p>
                                     {v.description && (
                                         <p className="text-sm text-gray-500 mt-2 line-clamp-2">{v.description}</p>
                                     )}
                                     <p className="mt-4 text-xl font-semibold text-gray-900">
-                                        RWF {Number(v.dailyRate).toLocaleString()}{' '}
-                                        <span className="text-sm font-normal text-gray-500">/ day</span>
+                                        {formatRwf(displayDailyRate(v))}{' '}
+                                        <span className="text-sm font-normal text-gray-500">/ day (no driver)</span>
                                     </p>
-                                    {isPassenger && (
+                                    <div className={`mt-4 flex gap-2 ${isPassenger ? '' : 'flex-col'}`}>
                                         <button
                                             type="button"
-                                            onClick={() => handleRent(v)}
-                                            disabled={payingVehicleId === v.id}
-                                            className="mt-4 w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                                            onClick={() => openVehicleDetails(v)}
+                                            className={`py-2.5 btn-outline-primary rounded-lg ${isPassenger ? 'flex-1' : 'w-full'}`}
                                         >
-                                            {payingVehicleId === v.id ? <Loader size={18} className="animate-spin" /> : null}
-                                            Book (Pay with IremboPay)
+                                            View
                                         </button>
-                                    )}
+                                        {isPassenger && (
+                                            <button
+                                                type="button"
+                                                onClick={() => openVehicleDetails(v)}
+                                                disabled={payingVehicleId === v.id || !isVehicleAvailable(v)}
+                                                className="flex-1 py-2.5 btn-outline-primary rounded-lg disabled:opacity-50"
+                                            >
+                                                {isVehicleAvailable(v) ? 'Book' : 'Rented'}
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
 
+                {selectedVehicle && (
+                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                            <div className="relative h-48 bg-gray-100">
+                                <img
+                                    src={(isAdmin ? editForm?.imageUrl : selectedVehicle.imageUrl) || DEFAULT_CAR_IMAGE}
+                                    alt={`${selectedVehicle.make} ${selectedVehicle.model}`}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { e.target.src = DEFAULT_CAR_IMAGE; }}
+                                />
+                                <StatusBadge
+                                    available={isAdmin ? editForm?.isAvailable : isVehicleAvailable(selectedVehicle)}
+                                    className="absolute top-3 left-3"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={closeVehicleDetails}
+                                    className="absolute top-3 right-3 p-1.5 bg-white/90 rounded-full text-gray-600 hover:text-gray-900"
+                                    aria-label="Close"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="p-6">
+                                {isAdmin && editForm ? (
+                                    <form onSubmit={handleSaveVehicle} className="space-y-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <h3 className="text-xl font-bold text-gray-900">Edit rental vehicle</h3>
+                                            <StatusBadge available={editForm.isAvailable} />
+                                        </div>
+
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-700 mb-2">Status</p>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditForm((f) => ({ ...f, isAvailable: true }))}
+                                                    className={`flex-1 py-2 rounded-lg text-sm font-medium btn-tab ${editForm.isAvailable ? 'btn-tab-active' : ''}`}
+                                                >
+                                                    Available
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditForm((f) => ({ ...f, isAvailable: false }))}
+                                                    className={`flex-1 py-2 rounded-lg text-sm font-medium btn-tab ${!editForm.isAvailable ? 'btn-tab-active' : ''}`}
+                                                >
+                                                    Rented
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Make</label>
+                                                <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.make} onChange={(e) => setEditForm({ ...editForm, make: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                                                <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.model} onChange={(e) => setEditForm({ ...editForm, model: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                                                <input type="number" required className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.year} onChange={(e) => setEditForm({ ...editForm, year: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                                                <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.color} onChange={(e) => setEditForm({ ...editForm, color: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.vehicleType} onChange={(e) => setEditForm({ ...editForm, vehicleType: e.target.value })}>
+                                                    <option value="SEDAN">Sedan</option>
+                                                    <option value="SUV">SUV</option>
+                                                    <option value="MOTORCYCLE">Motorcycle</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Seats</label>
+                                                <input type="number" required min="1" max="50" className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.seats} onChange={(e) => setEditForm({ ...editForm, seats: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Pickup location</label>
+                                            <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.pickupLocation} onChange={(e) => setEditForm({ ...editForm, pickupLocation: e.target.value })} />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Rate with driver (RWF)</label>
+                                                <input type="number" required min="0" className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.dailyRateWithDriver} onChange={(e) => setEditForm({ ...editForm, dailyRateWithDriver: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Rate without driver (RWF)</label>
+                                                <input type="number" required min="0" className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.dailyRateWithoutDriver} onChange={(e) => setEditForm({ ...editForm, dailyRateWithoutDriver: e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Transmission</label>
+                                                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.transmission} onChange={(e) => setEditForm({ ...editForm, transmission: e.target.value })}>
+                                                    <option value="AUTOMATIC">Automatic</option>
+                                                    <option value="MANUAL">Manual</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Fuel type</label>
+                                                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.fuelType} onChange={(e) => setEditForm({ ...editForm, fuelType: e.target.value })}>
+                                                    <option value="PETROL">Petrol</option>
+                                                    <option value="DIESEL">Diesel</option>
+                                                    <option value="ELECTRIC">Electric</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Owner name</label>
+                                            <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.ownerName} onChange={(e) => setEditForm({ ...editForm, ownerName: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                                                <ImageIcon size={14} /> Image URL
+                                            </label>
+                                            <input type="url" required className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.imageUrl} onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                            <textarea rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+                                        </div>
+                                        <div className="flex gap-2 pt-2">
+                                            <button type="button" onClick={closeVehicleDetails} className="flex-1 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                                            <button type="submit" disabled={savingVehicle} className="flex-1 py-2 btn-outline-primary rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
+                                                {savingVehicle && <Loader size={16} className="animate-spin" />}
+                                                Save changes
+                                            </button>
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <h3 className="text-2xl font-bold text-gray-900">
+                                                    {selectedVehicle.make} {selectedVehicle.model}
+                                                </h3>
+                                                <p className="text-sm text-gray-600 mt-1">
+                                                    {selectedVehicle.year} • {selectedVehicle.color} • {formatLabel(selectedVehicle.type)}
+                                                </p>
+                                            </div>
+                                            <StatusBadge available={isVehicleAvailable(selectedVehicle)} />
+                                        </div>
+                                        {selectedVehicle.description && (
+                                            <p className="text-sm text-gray-500 mt-3">{selectedVehicle.description}</p>
+                                        )}
+
+                                        <div className="mt-6 rounded-lg border border-gray-200 px-4">
+                                            <DetailRow label="Pickup location" value={selectedVehicle.pickupLocation || '—'} icon={MapPin} />
+                                            <DetailRow label="Cost with driver" value={`${formatRwf(selectedVehicle.dailyRateWithDriver)} / day`} />
+                                            <DetailRow label="Cost without driver" value={`${formatRwf(selectedVehicle.dailyRateWithoutDriver ?? selectedVehicle.dailyRate)} / day`} />
+                                            <DetailRow label="Transmission" value={formatLabel(selectedVehicle.transmission)} icon={Settings2} />
+                                            <DetailRow label="Fuel type" value={formatLabel(selectedVehicle.fuelType)} icon={Fuel} />
+                                            <DetailRow label="Owner" value={selectedVehicle.ownerName || '—'} icon={User} />
+                                            <DetailRow label="Seats" value={selectedVehicle.seats ?? '—'} icon={Users} />
+                                        </div>
+
+                                        {isPassenger && isVehicleAvailable(selectedVehicle) && (
+                                            <div className="mt-6 space-y-4">
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-700 mb-2">Rental option</p>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setRentWithDriver(false)}
+                                                            className={`flex-1 py-2 rounded-lg text-sm font-medium btn-tab ${!rentWithDriver ? 'btn-tab-active' : ''}`}
+                                                        >
+                                                            Without driver
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setRentWithDriver(true)}
+                                                            className={`flex-1 py-2 rounded-lg text-sm font-medium btn-tab ${rentWithDriver ? 'btn-tab-active' : ''}`}
+                                                        >
+                                                            With driver
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <p className="text-lg font-semibold text-gray-900">
+                                                    Total: {formatRwf(selectedRate)} <span className="text-sm font-normal text-gray-500">/ day</span>
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRent(selectedVehicle, rentWithDriver)}
+                                                    disabled={payingVehicleId === selectedVehicle.id}
+                                                    className="w-full py-2.5 btn-outline-primary rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                                                >
+                                                    {payingVehicleId === selectedVehicle.id && <Loader size={18} className="animate-spin" />}
+                                                    Book (Pay with IremboPay)
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {isPassenger && !isVehicleAvailable(selectedVehicle) && (
+                                            <p className="mt-6 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                                                This vehicle is currently rented and not available for booking.
+                                            </p>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {showAddModal && (
                     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+                        <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
                             <h3 className="text-xl font-bold text-gray-900 mb-4">Add vehicle for rental</h3>
                             <form onSubmit={handleAddVehicle} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Make</label>
-                                        <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.make} onChange={e => setNewVehicle({ ...newVehicle, make: e.target.value })} />
+                                        <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.make} onChange={(e) => setNewVehicle({ ...newVehicle, make: e.target.value })} />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
-                                        <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.model} onChange={e => setNewVehicle({ ...newVehicle, model: e.target.value })} />
+                                        <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.model} onChange={(e) => setNewVehicle({ ...newVehicle, model: e.target.value })} />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                                        <input type="number" required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.year} onChange={e => setNewVehicle({ ...newVehicle, year: e.target.value })} />
+                                        <input type="number" required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.year} onChange={(e) => setNewVehicle({ ...newVehicle, year: e.target.value })} />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
-                                        <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.color} onChange={e => setNewVehicle({ ...newVehicle, color: e.target.value })} />
+                                        <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.color} onChange={(e) => setNewVehicle({ ...newVehicle, color: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                        <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.vehicleType} onChange={(e) => setNewVehicle({ ...newVehicle, vehicleType: e.target.value })}>
+                                            <option value="SEDAN">Sedan</option>
+                                            <option value="SUV">SUV</option>
+                                            <option value="MOTORCYCLE">Motorcycle</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Seats</label>
+                                        <input type="number" required min="1" max="50" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.seats} onChange={(e) => setNewVehicle({ ...newVehicle, seats: e.target.value })} />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.vehicleType} onChange={e => setNewVehicle({ ...newVehicle, vehicleType: e.target.value })}>
-                                        <option value="SEDAN">Sedan</option>
-                                        <option value="SUV">SUV</option>
-                                        <option value="MOTORCYCLE">Motorcycle</option>
-                                    </select>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Pickup location</label>
+                                    <input type="text" required placeholder="e.g. Kigali Heights, KG 7 Ave" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.pickupLocation} onChange={(e) => setNewVehicle({ ...newVehicle, pickupLocation: e.target.value })} />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Daily rate with driver (RWF)</label>
+                                        <input type="number" required min="0" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.dailyRateWithDriver} onChange={(e) => setNewVehicle({ ...newVehicle, dailyRateWithDriver: e.target.value })} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Daily rate without driver (RWF)</label>
+                                        <input type="number" required min="0" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.dailyRateWithoutDriver} onChange={(e) => setNewVehicle({ ...newVehicle, dailyRateWithoutDriver: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Transmission</label>
+                                        <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.transmission} onChange={(e) => setNewVehicle({ ...newVehicle, transmission: e.target.value })}>
+                                            <option value="AUTOMATIC">Automatic</option>
+                                            <option value="MANUAL">Manual</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Fuel type</label>
+                                        <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.fuelType} onChange={(e) => setNewVehicle({ ...newVehicle, fuelType: e.target.value })}>
+                                            <option value="PETROL">Petrol</option>
+                                            <option value="DIESEL">Diesel</option>
+                                            <option value="ELECTRIC">Electric</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Owner name</label>
+                                    <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.ownerName} onChange={(e) => setNewVehicle({ ...newVehicle, ownerName: e.target.value })} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                                         <ImageIcon size={14} /> Image URL
                                     </label>
-                                    <input type="url" required placeholder="https://..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.imageUrl} onChange={e => setNewVehicle({ ...newVehicle, imageUrl: e.target.value })} />
+                                    <input type="url" required placeholder="https://..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.imageUrl} onChange={(e) => setNewVehicle({ ...newVehicle, imageUrl: e.target.value })} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                    <textarea rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.description} onChange={e => setNewVehicle({ ...newVehicle, description: e.target.value })} />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Daily rate (RWF)</label>
-                                    <input type="number" required min="0" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.dailyRate} onChange={e => setNewVehicle({ ...newVehicle, dailyRate: e.target.value })} />
+                                    <textarea rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={newVehicle.description} onChange={(e) => setNewVehicle({ ...newVehicle, description: e.target.value })} />
                                 </div>
                                 <div className="flex gap-2">
                                     <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-                                    <button type="submit" className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">Add vehicle</button>
+                                    <button type="submit" className="flex-1 py-2 btn-outline-primary rounded-lg">Add vehicle</button>
                                 </div>
                             </form>
                         </div>

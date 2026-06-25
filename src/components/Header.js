@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Bell, User } from 'lucide-react';
+import { Search, Bell, User, ArrowLeft } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,7 +9,7 @@ const formatRole = (userType) => {
     return labels[userType] || userType;
 };
 
-const Header = ({ title, subtitle }) => {
+const Header = ({ title, subtitle, onBack, backLabel = 'Back' }) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState('');
@@ -33,9 +33,22 @@ const Header = ({ title, subtitle }) => {
     return (
         <header className="h-20 bg-white border-b border-gray-200 flex items-center px-8 sticky top-0 z-10">
             <div className="w-full flex justify-between items-center">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-                    <p className="text-sm text-gray-600">{subtitle}</p>
+                <div className="flex items-center gap-3 min-w-0">
+                    {onBack && (
+                        <button
+                            type="button"
+                            onClick={onBack}
+                            className="shrink-0 p-2 rounded-lg border-2 border-transparent text-gray-600 hover:border-black hover:text-black transition-all"
+                            aria-label={backLabel}
+                            title={backLabel}
+                        >
+                            <ArrowLeft size={20} />
+                        </button>
+                    )}
+                    <div className="min-w-0">
+                        <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+                        <p className="text-sm text-gray-600">{subtitle}</p>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-6">

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { getRouteDistanceKm, geocodeAddress, estimateFare } from '../services/googleMaps';
@@ -156,7 +157,8 @@ const TripMap = ({ trip: rawTrip, onClose, isPassenger, isDriver }) => {
     );
 };
 
-const Trips = () => {
+const Trips = ({ nestedInRides = false }) => {
+    const navigate = useNavigate();
     const { isPassenger, isDriver, isAdmin } = useAuth();
     const [trips, setTrips] = useState([]);
     const [availableTrips, setAvailableTrips] = useState([]);
@@ -373,6 +375,8 @@ const Trips = () => {
             <Header
                 title="Trips"
                 subtitle={isPassenger ? 'Your booked rides' : isDriver ? 'Your rides & available trips' : 'All trips'}
+                onBack={nestedInRides ? () => navigate('/app/rides') : undefined}
+                backLabel="Back to Rides"
             />
 
             <div className="max-w-6xl mx-auto p-6">
@@ -420,7 +424,7 @@ const Trips = () => {
                             <button
                                 type="submit"
                                 disabled={requestLoading}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                                className="px-4 py-2 btn-outline-primary rounded-lg disabled:opacity-50"
                             >
                                 {requestLoading ? <Loader size={18} className="animate-spin" /> : <MapPin size={18} />}
                                 {requestLoading ? 'Requesting...' : 'Request trip'}
@@ -436,7 +440,7 @@ const Trips = () => {
                                 key={s || 'all'}
                                 type="button"
                                 onClick={() => setStatusFilter(s)}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${statusFilter === s ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium btn-tab ${statusFilter === s ? 'btn-tab-active' : ''}`}
                             >
                                 {s || 'All'}
                             </button>
@@ -482,7 +486,7 @@ const Trips = () => {
                     </h3>
                     {loading ? (
                         <div className="p-8 flex items-center justify-center">
-                            <Loader size={32} className="animate-spin text-blue-600" />
+                            <Loader size={32} className="animate-spin text-black" />
                         </div>
                     ) : trips.length === 0 ? (
                         <div className="p-8 text-center text-gray-500">No trips found.</div>
@@ -534,7 +538,7 @@ const Trips = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => setSelectedTrip(t)}
-                                                        className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                                                        className="btn-text-action flex items-center gap-1"
                                                     >
                                                         <MapPin size={16} /> Map
                                                     </button>

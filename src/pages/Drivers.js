@@ -2,174 +2,191 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api';
 import Header from '../components/Header';
-import { CheckCircle, Clock, Truck, User, FileText } from 'lucide-react';
+import { StatusBadge, DetailRow, driverVerificationMeta } from '../components/ui/EntityUI';
+import { Truck, User, FileText, X, Loader } from 'lucide-react';
+
+const driverToEditForm = (driver) => ({
+    driverId: driver.driverId,
+    name: driver.name || '',
+    email: driver.email || '',
+    phoneNumber: driver.phoneNumber || '',
+    licenseNumber: driver.licenseNumber || '',
+    address: driver.address || '',
+    bio: driver.bio || '',
+    yearsExperience: driver.yearsExperience ?? '',
+    verificationStatus: driver.verificationStatus || 'PENDING',
+    isAvailable: driver.isAvailable !== false,
+});
 
 const Drivers = () => {
-  const { isAdmin } = useAuth();
-  const [drivers, setDrivers] = useState([]);
-  const [loading, setLoading] = useState(true);
+    const { isAdmin } = useAuth();
+    const [drivers, setDrivers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedDriver, setSelectedDriver] = useState(null);
+    const [editForm, setEditForm] = useState(null);
+    const [saving, setSaving] = useState(false);
 
-  const fetchDrivers = async () => {
-    try {
-      setLoading(true);
-      const data = await apiService.getAdminDrivers();
-      setDrivers(data.drivers || []);
-    } catch (error) {
-      console.error('Error fetching drivers:', error);
-    } finally {
-      setLoading(false);
+    const fetchDrivers = async () => {
+        try {
+            setLoading(true);
+            const data = await apiService.getAdminDrivers();
+            setDrivers(data.drivers || []);
+        } catch (error) {
+            console.error('Error fetching drivers:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchDrivers();
+    }, []);
+
+    const openDriver = (driver) => {
+        setSelectedDriver(driver);
+        setEditForm(driverToEditForm(driver));
+    };
+
+    const closeDriver = () => {
+        setSelectedDriver(null);
+        setEditForm(null);
+    };
+
+    const handleSave = async (e) => {
+        e.preventDefault();
+        if (!editForm?.driverId) return;
+        setSaving(true);
+        try {
+            const { driver } = await apiService.updateAdminDriver(editForm.driverId, {
+                name: editForm.name,
+                email: editForm.email,
+                phoneNumber: editForm.phoneNumber,
+                licenseNumber: editForm.licenseNumber,
+                address: editForm.address,
+                bio: editForm.bio,
+                yearsExperience: editForm.yearsExperience !== '' ? Number(editForm.yearsExperience) : undefined,
+                verificationStatus: editForm.verificationStatus,
+                isAvailable: editForm.isAvailable,
+            });
+            setDrivers((prev) => prev.map((d) => (d.driverId === driver.driverId ? driver : d)));
+            setSelectedDriver(driver);
+            setEditForm(driverToEditForm(driver));
+        } catch (error) {
+            alert(error.message || 'Failed to update driver');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (!isAdmin) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col">
+                <Header title="Drivers" subtitle="Access restricted" />
+                <div className="p-8 text-center text-gray-600">Only admins can view this page.</div>
+            </div>
+        );
     }
-  };
 
-  useEffect(() => {
-    fetchDrivers();
-  }, []);
-
-  const toggleVerification = async (driverId, currentStatus) => {
-    const next = currentStatus === 'APPROVED' ? 'PENDING' : 'APPROVED';
-    try {
-      await apiService.updateDriverVerification(driverId, next);
-      setDrivers((prev) =>
-        prev.map((d) =>
-          d.driverId === driverId ? { ...d, verificationStatus: next } : d
-        )
-      );
-    } catch (error) {
-      console.error('Error updating driver:', error);
-      alert('Failed to update driver status');
-    }
-  };
-
-  if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header title="Drivers" subtitle="Access restricted" />
-        <div className="p-8 text-center text-gray-600">Only admins can view this page.</div>
-      </div>
-    );
-  }
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+            <Header title="Drivers Management" subtitle="Approve and manage drivers (API)" />
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header title="Drivers Management" subtitle="Approve and manage drivers (API)" />
-
-      <div className="p-6 flex-1">
-        {loading ? (
-          <div className="flex justify-center py-10">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {drivers.map((driver) => {
-              const approved = driver.verificationStatus === 'APPROVED';
-              const vehicle = driver.vehicle;
-              return (
-                <div
-                  key={driver.driverId}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-                >
-                  <div className="p-5">
-                    <div className="flex items-start gap-4">
-                      {driver.profilePictureUrl ? (
-                        <img
-                          src={driver.profilePictureUrl}
-                          alt={driver.name}
-                          className="w-14 h-14 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
-                          <User className="text-blue-600" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 truncate">{driver.name}</h3>
-                        <p className="text-sm text-gray-500">{driver.phoneNumber}</p>
-                        <p className="text-xs text-gray-400 mt-1">{driver.email}</p>
-                      </div>
+            <div className="p-6 flex-1">
+                {loading ? (
+                    <div className="flex justify-center py-10">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-black" />
                     </div>
-
-                    <div className="mt-4 space-y-2 text-sm text-gray-600">
-                      {driver.ageYears != null && <p>Age: {driver.ageYears} years</p>}
-                      {driver.yearsExperience != null && (
-                        <p>Experience: {driver.yearsExperience} years</p>
-                      )}
-                      {driver.licenseNumber && <p>License: {driver.licenseNumber}</p>}
-                      {driver.address && <p>Address: {driver.address}</p>}
-                      {driver.bio && <p className="italic">{driver.bio}</p>}
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {drivers.map((driver) => {
+                            const verification = driverVerificationMeta(driver.verificationStatus);
+                            return (
+                                <div key={driver.driverId} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                                    <div className="p-5 flex-1">
+                                        <div className="flex items-start gap-4">
+                                            {driver.profilePictureUrl ? (
+                                                <img src={driver.profilePictureUrl} alt={driver.name} className="w-14 h-14 rounded-full object-cover" />
+                                            ) : (
+                                                <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
+                                                    <User className="text-gray-600" />
+                                                </div>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-gray-900 truncate">{driver.name}</h3>
+                                                <p className="text-sm text-gray-500">{driver.phoneNumber}</p>
+                                            </div>
+                                            <StatusBadge label={verification.label} tone={verification.tone} />
+                                        </div>
+                                        {driver.vehicle && (
+                                            <p className="mt-3 text-sm text-gray-600">{driver.vehicle.make} {driver.vehicle.model}</p>
+                                        )}
+                                    </div>
+                                    <div className="px-5 pb-5">
+                                        <button type="button" onClick={() => openDriver(driver)} className="w-full py-2.5 btn-outline-primary rounded-lg">View</button>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
+                )}
+            </div>
 
-                    {vehicle && (
-                      <div className="mt-4 p-3 bg-gray-50 rounded-lg flex gap-3 items-center">
-                        {vehicle.imageUrl ? (
-                          <img
-                            src={vehicle.imageUrl}
-                            alt="Vehicle"
-                            className="w-16 h-12 rounded object-cover"
-                          />
-                        ) : (
-                          <Truck className="text-gray-400" size={32} />
-                        )}
-                        <div className="text-sm">
-                          <p className="font-medium">
-                            {vehicle.make} {vehicle.model}
-                          </p>
-                          <p className="text-gray-500">{vehicle.registrationNumber}</p>
+            {selectedDriver && editForm && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+                            <h3 className="text-xl font-bold text-gray-900">Edit driver</h3>
+                            <button type="button" onClick={closeDriver} className="p-1.5 rounded-full text-gray-500 hover:text-gray-900"><X size={20} /></button>
                         </div>
-                      </div>
-                    )}
-
-                    {driver.licenseDocumentUrl && (
-                      <a
-                        href={driver.licenseDocumentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3 inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                      >
-                        <FileText size={16} />
-                        View license document
-                      </a>
-                    )}
-                  </div>
-
-                  <div className="px-5 py-3 bg-gray-50 border-t flex justify-between items-center">
-                    <span
-                      className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                        approved
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}
-                    >
-                      {driver.verificationStatus || 'PENDING'}
-                    </span>
-                    <button
-                      onClick={() =>
-                        toggleVerification(driver.driverId, driver.verificationStatus)
-                      }
-                      className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium ${
-                        approved
-                          ? 'bg-gray-200 text-gray-700'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      {approved ? (
-                        <>
-                          <Clock size={14} /> Revoke
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle size={14} /> Approve
-                        </>
-                      )}
-                    </button>
-                  </div>
+                        <form onSubmit={handleSave} className="p-6 space-y-4">
+                            <div>
+                                <p className="text-sm font-medium text-gray-700 mb-2">Verification status</p>
+                                <div className="flex gap-2 flex-wrap">
+                                    {['PENDING', 'APPROVED', 'REJECTED'].map((s) => (
+                                        <button key={s} type="button" onClick={() => setEditForm((f) => ({ ...f, verificationStatus: s }))} className={`px-3 py-2 rounded-lg text-sm font-medium btn-tab ${editForm.verificationStatus === s ? 'btn-tab-active' : ''}`}>
+                                            {driverVerificationMeta(s).label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-gray-700 mb-2">Availability</p>
+                                <div className="flex gap-2">
+                                    <button type="button" onClick={() => setEditForm((f) => ({ ...f, isAvailable: true }))} className={`flex-1 py-2 rounded-lg text-sm font-medium btn-tab ${editForm.isAvailable ? 'btn-tab-active' : ''}`}>Available</button>
+                                    <button type="button" onClick={() => setEditForm((f) => ({ ...f, isAvailable: false }))} className={`flex-1 py-2 rounded-lg text-sm font-medium btn-tab ${!editForm.isAvailable ? 'btn-tab-active' : ''}`}>Unavailable</button>
+                                </div>
+                            </div>
+                            <input required className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Full name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+                            <input required type="email" className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+                            <input required className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Phone" value={editForm.phoneNumber} onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })} />
+                            <input className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="License number" value={editForm.licenseNumber} onChange={(e) => setEditForm({ ...editForm, licenseNumber: e.target.value })} />
+                            <input className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
+                            <input type="number" min="0" className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Years experience" value={editForm.yearsExperience} onChange={(e) => setEditForm({ ...editForm, yearsExperience: e.target.value })} />
+                            <textarea rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Bio" value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
+                            {selectedDriver.vehicle && (
+                                <div className="rounded-lg border border-gray-200 px-4">
+                                    <DetailRow label="Vehicle" value={`${selectedDriver.vehicle.make} ${selectedDriver.vehicle.model}`} icon={Truck} />
+                                    <DetailRow label="Registration" value={selectedDriver.vehicle.registrationNumber || '—'} />
+                                </div>
+                            )}
+                            {selectedDriver.licenseDocumentUrl && (
+                                <a href={selectedDriver.licenseDocumentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-gray-700 hover:underline">
+                                    <FileText size={16} /> View license document
+                                </a>
+                            )}
+                            <div className="flex gap-2 pt-2">
+                                <button type="button" onClick={closeDriver} className="flex-1 py-2 border border-gray-300 rounded-lg">Cancel</button>
+                                <button type="submit" disabled={saving} className="flex-1 py-2 btn-outline-primary rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
+                                    {saving && <Loader size={16} className="animate-spin" />}
+                                    Save changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+            )}
+        </div>
+    );
 };
 
 export default Drivers;

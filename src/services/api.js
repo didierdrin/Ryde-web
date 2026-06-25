@@ -280,15 +280,33 @@ class ApiService {
     });
   }
 
+  async updateRentalVehicle(rentalId, vehicleData) {
+    return this.request(`/rentals/${encodeURIComponent(rentalId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(vehicleData),
+    });
+  }
+
   // Auctions
-  async getAuctionListings(type = null) {
-    const url = type ? `/auctions?type=${encodeURIComponent(type)}` : '/auctions';
+  async getAuctionListings(type = null, all = false) {
+    const params = new URLSearchParams();
+    if (type) params.set('type', type);
+    if (all) params.set('all', 'true');
+    const qs = params.toString();
+    const url = qs ? `/auctions?${qs}` : '/auctions';
     return this.request(url);
   }
 
   async createAuctionListing(listingData) {
     return this.request('/auctions', {
       method: 'POST',
+      body: JSON.stringify(listingData),
+    });
+  }
+
+  async updateAuctionListing(listingId, listingData) {
+    return this.request(`/auctions/${encodeURIComponent(listingId)}`, {
+      method: 'PUT',
       body: JSON.stringify(listingData),
     });
   }
@@ -326,6 +344,27 @@ class ApiService {
     return this.request(`/admin/drivers/${driverId}/verification`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
+    });
+  }
+
+  async updateAdminDriver(driverId, data) {
+    return this.request(`/admin/drivers/${encodeURIComponent(driverId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAdminPassenger(passengerId, data) {
+    return this.request(`/admin/passengers/${encodeURIComponent(passengerId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAdminTrip(tripId, data) {
+    return this.request(`/admin/trips/${encodeURIComponent(tripId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
   }
 }

@@ -5,11 +5,14 @@ import Dashboard from './pages/Dashboard';
 import LiveMap from './pages/LiveMap';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import LandingPage from './pages/LandingPage';
+import LandingLayout from './components/landing/LandingLayout';
+import LandingHome from './pages/landing/LandingHome';
+import PrivacyPolicy from './pages/landing/PrivacyPolicy';
+import TermsAndConditions from './pages/landing/TermsAndConditions';
+import ContactUs from './pages/landing/ContactUs';
 import Drivers from './pages/Drivers';
 import Passengers from './pages/Passengers';
 import Subscriptions from './pages/Subscriptions';
-import Trips from './pages/Trips';
 import Rentals from './pages/Rentals';
 import Auctions from './pages/Auctions';
 import Mechanics from './pages/Mechanics';
@@ -38,14 +41,19 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<LandingLayout />}>
+            <Route index element={<LandingHome />} />
+            <Route path="privacy" element={<PrivacyPolicy />} />
+            <Route path="terms" element={<TermsAndConditions />} />
+            <Route path="contact" element={<ContactUs />} />
+          </Route>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
           <Route path="/app" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
-            <Route path="rides" element={<LiveMap />} />
-            <Route path="trips" element={<Trips />} />
+            <Route path="rides/*" element={<LiveMap />} />
+            <Route path="trips" element={<Navigate to="/app/rides/trips" replace />} />
             <Route path="rentals" element={<Rentals />} />
             <Route path="auctions" element={<Auctions />} />
             <Route path="mechanics" element={<Mechanics />} />

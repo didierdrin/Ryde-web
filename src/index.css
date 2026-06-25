@@ -29,3 +29,37 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+
+@layer components {
+  .btn-outline-primary {
+    @apply inline-flex items-center justify-center gap-2 border-2 border-black text-black bg-transparent font-medium transition-all hover:border-black hover:text-black disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-outline-primary-round {
+    @apply w-full py-3 border-2 border-black text-black bg-transparent rounded-full font-semibold text-base cursor-pointer transition-all hover:border-black hover:text-black disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-tab {
+    @apply border-2 border-transparent text-gray-600 bg-transparent transition-all hover:border-black hover:text-black;
+  }
+
+  .btn-tab-active {
+    @apply border-2 border-black text-black font-semibold bg-transparent;
+  }
+
+  .btn-text-action {
+    @apply text-black font-medium border-2 border-transparent rounded-lg transition-all hover:border-black px-2 py-1;
+  }
+
+  .btn-outline-on-dark {
+    @apply border-2 border-white text-white bg-transparent font-medium transition-all hover:border-white;
+  }
+
+  .list-item-interactive {
+    @apply cursor-pointer border-2 border-transparent transition-all hover:border-black;
+  }
+
+  .list-item-selected {
+    @apply border-2 border-black text-black bg-transparent font-semibold;
+  }
+}

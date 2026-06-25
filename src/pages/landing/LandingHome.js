@@ -2,45 +2,19 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Smartphone, MapPin, CreditCard, Calendar, User } from 'lucide-react';
 
-const LandingPage = () => {
+const LandingHome = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen">
-            {/* Navbar */}
-            <nav className="fixed top-0 left-0 right-0 z-50" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6), transparent)' }}>
-                <div className="max-w-7xl mx-auto px-6 py-4">
-                    <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                            <img
-                                src="ryde-icon.png"
-                                alt="RYDE"
-                                className="w-6 h-6 rounded-full object-cover"
-                            />
-                            <span className="text-xl font-bold text-white">RYDE</span>
-                        </div>
-
-                        <div className="flex items-center gap-6">
-                            <a href="#features" className="hidden md:block text-white/80 hover:text-white">Features</a>
-                            <a href="#pricing" className="hidden md:block text-white/80 hover:text-white">Pricing</a>
-                            <a href="#support" className="hidden md:block text-white/80 hover:text-white">Support</a>
-                            <button className="px-4 py-2 text-white/80 hover:text-white border border-white/30 rounded-lg" onClick={() => navigate('/signup')}>Sign Up</button>
-                            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" onClick={() => navigate('/login')}>Log In</button>
-                        </div>
-                    </div>
-                </div>
-            </nav>
-
-            {/* Hero Section */}
+        <>
             <header className="relative bg-cover bg-center text-white min-h-[600px] flex items-center" style={{ backgroundImage: "url('ryde-landing-page.png')" }}>
-                <div className="absolute inset-0 bg-black/30"></div>
+                <div className="absolute inset-0 bg-black/30" />
                 <div className="relative max-w-7xl mx-auto px-6 text-center w-full">
                     <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">Your Private Transport, Managed <br /> Seamlessly</h1>
                     <p className="text-xl text-blue-100 max-w-3xl mx-auto">RYDE offers a comprehensive solution for managing your private transport needs, from real-time booking to secure payments and flexible subscriptions.</p>
                 </div>
             </header>
 
-            {/* Key Features */}
             <section className="py-20 bg-white" id="features">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="text-center mb-16">
@@ -61,7 +35,7 @@ const LandingPage = () => {
                                 <MapPin size={24} className="text-green-600" />
                             </div>
                             <h3 className="text-xl font-semibold text-gray-900 mb-2">Driver Tracking</h3>
-                            <p className="text-gray-600">Monitor your driver's location in real-time, providing peace of mind and accurate arrival estimates.</p>
+                            <p className="text-gray-600">Monitor your driver&apos;s location in real-time, providing peace of mind and accurate arrival estimates.</p>
                         </div>
                         <div className="text-center p-6">
                             <div className="w-16 h-16 bg-amber-100 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -81,16 +55,14 @@ const LandingPage = () => {
                 </div>
             </section>
 
-            {/* CTA Section */}
-            <section className="py-20 bg-gray-50">
+            <section className="py-20 bg-gray-50" id="pricing">
                 <div className="max-w-4xl mx-auto px-6 text-center">
                     <h2 className="text-4xl font-bold text-gray-900 mb-4">Ready to Experience the Future of Private <br /> Transport?</h2>
                     <p className="text-xl text-gray-600 mb-8">Join RYDE today and take control of your transport needs with our innovative platform.</p>
-                    <button className="px-8 py-4 bg-blue-600 text-white text-lg font-semibold rounded-lg hover:bg-blue-700 transition-colors" onClick={() => navigate('/login')}>Sign Up Now</button>
+                    <button type="button" className="px-8 py-4 btn-outline-primary text-lg font-semibold rounded-lg" onClick={() => navigate('/login')}>Sign Up Now</button>
                 </div>
             </section>
 
-            {/* How It Works */}
             <section className="py-20 bg-white">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="text-center mb-16">
@@ -118,13 +90,12 @@ const LandingPage = () => {
                                 <CheckCircle size={20} className="text-purple-600" />
                             </div>
                             <h3 className="text-xl font-semibold text-gray-900 mb-2">Enjoy the journey</h3>
-                            <p className="text-gray-600">Track your driver's progress in real-time and enjoy a comfortable ride to your destination.</p>
+                            <p className="text-gray-600">Track your driver&apos;s progress in real-time and enjoy a comfortable ride to your destination.</p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Benefits */}
             <section className="py-20 bg-gray-50">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="text-center mb-16">
@@ -136,7 +107,7 @@ const LandingPage = () => {
                         <div className="text-center">
                             <img src="https://images.unsplash.com/photo-1512428559087-560fa0d8988e?q=80&w=2070&auto=format&fit=crop" alt="Passenger" className="w-full h-64 object-cover rounded-lg mb-6" />
                             <h3 className="text-2xl font-semibold text-gray-900 mb-4">For Passengers</h3>
-                            <p className="text-gray-600">RYDE offers a convenient and affordable way to get around. With a few taps, you can request a ride and track your driver's arrival in real-time.</p>
+                            <p className="text-gray-600">RYDE offers a convenient and affordable way to get around. With a few taps, you can request a ride and track your driver&apos;s arrival in real-time.</p>
                         </div>
                         <div className="text-center">
                             <img src="https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?q=80&w=2070&auto=format&fit=crop" alt="Driver" className="w-full h-64 object-cover rounded-lg mb-6" />
@@ -147,8 +118,7 @@ const LandingPage = () => {
                 </div>
             </section>
 
-            {/* Testimonials */}
-            <section className="py-20 bg-white">
+            <section className="py-20 bg-white" id="support">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold text-gray-900 mb-4">Customer Testimonials</h2>
@@ -179,7 +149,7 @@ const LandingPage = () => {
                                 </div>
                             </div>
                             <div className="text-amber-400 mb-3">★★★★☆</div>
-                            <p className="text-gray-600">I've been driving with RYDE for over a year now, and it's been a fantastic experience. The flexible hours allow me to work around my schedule.</p>
+                            <p className="text-gray-600">I&apos;ve been driving with RYDE for over a year now, and it&apos;s been a fantastic experience. The flexible hours allow me to work around my schedule.</p>
                         </div>
                         <div className="bg-gray-50 p-6 rounded-lg">
                             <div className="flex items-center gap-3 mb-4">
@@ -192,27 +162,13 @@ const LandingPage = () => {
                                 </div>
                             </div>
                             <div className="text-amber-400 mb-3">★★★★★</div>
-                            <p className="text-gray-600">RYDE is my go-to for getting around the city. It's reliable, affordable, and the drivers are always friendly. I feel safe using the app.</p>
+                            <p className="text-gray-600">RYDE is my go-to for getting around the city. It&apos;s reliable, affordable, and the drivers are always friendly. I feel safe using the app.</p>
                         </div>
                     </div>
                 </div>
             </section>
-
-            {/* Footer */}
-            <footer className="bg-gray-900 text-white py-12">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="flex flex-col md:flex-row justify-between items-center">
-                        <div className="flex items-center gap-6 mb-4 md:mb-0">
-                            <a href="/privacy" className="text-gray-400 hover:text-white">Privacy Policy</a>
-                            <a href="/terms" className="text-gray-400 hover:text-white">Terms of Service</a>
-                            <a href="/contact" className="text-gray-400 hover:text-white">Contact Us</a>
-                        </div>
-                        <p className="text-gray-400">© {new Date().getFullYear()} RYDE. All rights reserved.</p>
-                    </div>
-                </div>
-            </footer>
-        </div>
+        </>
     );
 };
 
-export default LandingPage;
+export default LandingHome;
