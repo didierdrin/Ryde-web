@@ -6,12 +6,10 @@ import {
     Users,
     User,
     ChevronRight,
-    Crown,
     LogOut,
     ChevronLeft,
     MapPin,
     Gavel,
-    Wrench,
     UserSearch,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
