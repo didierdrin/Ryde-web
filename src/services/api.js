@@ -312,6 +312,22 @@ class ApiService {
       `/drivers/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}`
     );
   }
+
+  // Admin
+  async getAdminDrivers() {
+    return this.request('/admin/drivers');
+  }
+
+  async getAdminPassengers() {
+    return this.request('/admin/passengers');
+  }
+
+  async updateDriverVerification(driverId, status) {
+    return this.request(`/admin/drivers/${driverId}/verification`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
 }
 
 const apiService = new ApiService();
