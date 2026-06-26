@@ -50,7 +50,7 @@ class ApiService {
           );
         }
         if (response.status === 413) {
-          throw new Error('The export file is too large to email. Please use Download PDF instead.');
+          throw new Error('The export file is too large to email. Try Download PDF or a smaller report.');
         }
         throw new Error('Invalid response from server. Please try again.');
       }
@@ -58,7 +58,7 @@ class ApiService {
       if (!response.ok) {
         if (response.status === 413) {
           throw new Error(
-            data.error || 'The export file is too large to email. Please use Download PDF instead.'
+            data.error || 'The export file is too large to email. Try Download PDF or export a smaller page (e.g. Passengers instead of Dashboard).'
           );
         }
         throw new Error(data.error || 'Request failed');
