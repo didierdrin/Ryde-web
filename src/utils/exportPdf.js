@@ -42,7 +42,7 @@ function cellValue(value) {
  * }} config
  */
 export async function generateReportPdf({ title, subtitle, columns, rows, summary = [], sections = [] }) {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
     const logo = await loadLogoDataUrl();
     const generatedAt = new Date().toLocaleString();
 
@@ -99,7 +99,7 @@ export async function generateReportPdf({ title, subtitle, columns, rows, summar
         startY = doc.lastAutoTable.finalY + 8;
     }
 
-    const renderTable = (tableColumns, tableRows, y) => {
+    const renderTable = (tableColumns, tableRows, y, badgeColumnIndex = -1) => {
         const tableBody = (tableRows || []).map((row) => row.map(cellValue));
         autoTable(doc, {
             startY: y,
@@ -110,6 +110,21 @@ export async function generateReportPdf({ title, subtitle, columns, rows, summar
             headStyles: { fillColor: [17, 24, 39], textColor: 255, fontStyle: 'bold' },
             alternateRowStyles: { fillColor: [249, 250, 251] },
             margin: { left: 14, right: 14 },
+            didParseCell: (data) => {
+                if (
+                    badgeColumnIndex >= 0 &&
+                    data.section === 'body' &&
+                    data.column.index === badgeColumnIndex
+                ) {
+                    const value = String(data.cell.raw ?? '');
+                    if (value && value !== '—') {
+                        data.cell.styles.fillColor = [254, 243, 199];
+                        data.cell.styles.textColor = [146, 64, 14];
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.halign = 'center';
+                    }
+                }
+            },
         });
         return doc.lastAutoTable.finalY + 8;
     };
@@ -134,7 +149,12 @@ export async function generateReportPdf({ title, subtitle, columns, rows, summar
             startY += 6;
         }
 
-        startY = renderTable(section.columns, section.rows, startY);
+        startY = renderTable(
+            section.columns,
+            section.rows,
+            startY,
+            section.badgeColumnIndex ?? section.columns.indexOf('Badge')
+        );
     });
 
     if (reportSections.length === 0) {

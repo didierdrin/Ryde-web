@@ -5,6 +5,7 @@ import { waitForRentalIntentCompleted } from '../services/paymentPolling';
 import Header from '../components/Header';
 import PaymentConfirmDialog from '../components/PaymentConfirmDialog';
 import { CardGridSkeleton } from '../components/ui/Skeleton';
+import { BADGES, badgeCell, getMostRentedId, withBadgeColumn } from '../utils/exportBadges';
 import {
     Car,
     Plus,
@@ -259,6 +260,8 @@ const Rentals = () => {
             : (selectedVehicle.dailyRateWithoutDriver ?? selectedVehicle.dailyRate))
         : 0;
 
+    const mostRentedId = getMostRentedId(vehicles);
+
     const exportConfig = {
         title: 'Rentals Report',
         subtitle: isPassenger ? 'Rent a vehicle — pay with IremboPay' : 'Add and manage rental vehicles',
@@ -266,17 +269,24 @@ const Rentals = () => {
         summary: [
             { label: 'Total vehicles', value: vehicles.length },
             { label: 'Available', value: vehicles.filter((v) => isVehicleAvailable(v)).length },
+            ...(mostRentedId ? [{
+                label: 'Most Rented',
+                value: `${vehicles.find((v) => v.id === mostRentedId)?.make || ''} ${vehicles.find((v) => v.id === mostRentedId)?.model || ''}`.trim(),
+            }] : []),
         ],
-        columns: ['Make', 'Model', 'Year', 'Type', 'Daily rate', 'Location', 'Status'],
-        rows: vehicles.map((v) => [
-            v.make,
-            v.model,
-            v.year ?? '—',
-            formatLabel(v.type || v.vehicleType),
-            formatRwf(displayDailyRate(v)),
-            v.pickupLocation || '—',
-            isVehicleAvailable(v) ? 'Available' : 'Rented',
-        ]),
+        columns: ['Make', 'Model', 'Year', 'Type', 'Daily rate', 'Location', 'Status', 'Badge'],
+        rows: withBadgeColumn(
+            vehicles.map((v) => [
+                v.make,
+                v.model,
+                v.year ?? '—',
+                formatLabel(v.type || v.vehicleType),
+                formatRwf(displayDailyRate(v)),
+                v.pickupLocation || '—',
+                isVehicleAvailable(v) ? 'Available' : 'Rented',
+            ]),
+            vehicles.map((v) => badgeCell(v.id, mostRentedId, BADGES.MOST_RENTED))
+        ),
     };
 
     return (

@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import { StatusBadge, DetailRow, formatRwf, formatLabel, auctionStatusMeta } from '../components/ui/EntityUI';
 import { CardGridSkeleton } from '../components/ui/Skeleton';
 import { Gavel, Plus, ShoppingBag, Tag, X, User } from 'lucide-react';
+import { BADGES, badgeCell, getMostSoldId, withBadgeColumn } from '../utils/exportBadges';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&q=80';
 
@@ -132,6 +133,9 @@ const Auctions = () => {
         item.status === 'ACTIVE' &&
         item.userId !== user?.userId;
 
+    const mostSoldId = getMostSoldId(listings);
+    const mostSoldListing = listings.find((l) => l.id === mostSoldId);
+
     const exportConfig = {
         title: 'For Sale Report',
         subtitle: 'Buy and sell vehicles on Ryde',
@@ -139,17 +143,21 @@ const Auctions = () => {
         summary: [
             { label: 'Total listings', value: listings.length },
             { label: 'Filter', value: filter === 'ALL' ? 'All' : filter },
+            ...(mostSoldListing ? [{ label: 'Most Sold', value: mostSoldListing.title }] : []),
         ],
-        columns: ['Title', 'Type', 'Make', 'Model', 'Year', 'Price (RWF)', 'Status'],
-        rows: listings.map((item) => [
-            item.title,
-            item.listingType === 'SELL' ? 'For Sale' : 'Wanted',
-            item.make || '—',
-            item.model || '—',
-            item.year ?? '—',
-            item.price != null ? Number(item.price).toLocaleString() : '—',
-            item.status || '—',
-        ]),
+        columns: ['Title', 'Type', 'Make', 'Model', 'Year', 'Price (RWF)', 'Status', 'Badge'],
+        rows: withBadgeColumn(
+            listings.map((item) => [
+                item.title,
+                item.listingType === 'SELL' ? 'For Sale' : 'Wanted',
+                item.make || '—',
+                item.model || '—',
+                item.year ?? '—',
+                item.price != null ? Number(item.price).toLocaleString() : '—',
+                item.status || '—',
+            ]),
+            listings.map((item) => badgeCell(item.id, mostSoldId, BADGES.MOST_SOLD))
+        ),
     };
 
     return (

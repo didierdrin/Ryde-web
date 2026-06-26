@@ -49,10 +49,18 @@ class ApiService {
             'Server returned a web page instead of JSON. Check that REACT_APP_API_URL points to your API (e.g. https://your-backend.up.railway.app/api), not to the frontend URL.'
           );
         }
+        if (response.status === 413) {
+          throw new Error('The export file is too large to email. Please use Download PDF instead.');
+        }
         throw new Error('Invalid response from server. Please try again.');
       }
 
       if (!response.ok) {
+        if (response.status === 413) {
+          throw new Error(
+            data.error || 'The export file is too large to email. Please use Download PDF instead.'
+          );
+        }
         throw new Error(data.error || 'Request failed');
       }
 

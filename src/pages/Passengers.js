@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import { StatusBadge, DetailRow } from '../components/ui/EntityUI';
 import { CardGridSkeleton, EntityCardSkeleton, Skeleton } from '../components/ui/Skeleton';
 import { User, Search, X, Loader, CreditCard } from 'lucide-react';
+import { BADGES, badgeCell, getRoyalCustomerId, withBadgeColumn } from '../utils/exportBadges';
 
 const passengerToEditForm = (p) => ({
     passengerId: p.passengerId,
@@ -98,6 +99,9 @@ const Passengers = () => {
         );
     }
 
+    const royalCustomerId = getRoyalCustomerId(filteredPassengers);
+    const royalCustomer = filteredPassengers.find((p) => p.passengerId === royalCustomerId);
+
     const exportConfig = {
         title: 'Passengers Report',
         subtitle: 'Registered passengers',
@@ -105,15 +109,19 @@ const Passengers = () => {
         summary: [
             { label: 'Total passengers', value: passengers.length },
             { label: 'Showing', value: filteredPassengers.length },
+            ...(royalCustomer ? [{ label: 'Royal Customer', value: royalCustomer.name }] : []),
         ],
-        columns: ['Name', 'Phone', 'Email', 'Trips', 'Rating'],
-        rows: filteredPassengers.map((p) => [
-            p.name,
-            p.phoneNumber,
-            p.email,
-            p.totalTrips ?? '—',
-            p.rating ?? '—',
-        ]),
+        columns: ['Name', 'Phone', 'Email', 'Trips', 'Rating', 'Badge'],
+        rows: withBadgeColumn(
+            filteredPassengers.map((p) => [
+                p.name,
+                p.phoneNumber,
+                p.email,
+                p.totalTrips ?? '—',
+                p.rating ?? '—',
+            ]),
+            filteredPassengers.map((p) => badgeCell(p.passengerId, royalCustomerId, BADGES.ROYAL_CUSTOMER))
+        ),
     };
 
     return (

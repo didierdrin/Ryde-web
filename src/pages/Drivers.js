@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import { StatusBadge, DetailRow, driverVerificationMeta } from '../components/ui/EntityUI';
 import { CardGridSkeleton, EntityCardSkeleton } from '../components/ui/Skeleton';
 import { Truck, User, FileText, X, Loader } from 'lucide-react';
+import { BADGES, badgeCell, getHighPerformerId, withBadgeColumn } from '../utils/exportBadges';
 
 const driverToEditForm = (driver) => ({
     driverId: driver.driverId,
@@ -88,20 +89,31 @@ const Drivers = () => {
         );
     }
 
+    const highPerformerId = getHighPerformerId(drivers);
+    const highPerformer = drivers.find((d) => d.driverId === highPerformerId);
+
     const exportConfig = {
         title: 'Drivers Report',
         subtitle: 'Approve and manage drivers',
         filename: 'ryde-drivers',
-        summary: [{ label: 'Total drivers', value: drivers.length }],
-        columns: ['Name', 'Phone', 'Email', 'Verification', 'Available', 'License'],
-        rows: drivers.map((d) => [
-            d.name,
-            d.phoneNumber,
-            d.email,
-            d.verificationStatus || 'PENDING',
-            d.isAvailable !== false ? 'Yes' : 'No',
-            d.licenseNumber || '—',
-        ]),
+        summary: [
+            { label: 'Total drivers', value: drivers.length },
+            ...(highPerformer ? [{ label: 'High Performer', value: highPerformer.name }] : []),
+        ],
+        columns: ['Name', 'Phone', 'Email', 'Trips', 'Rating', 'Verification', 'Available', 'License', 'Badge'],
+        rows: withBadgeColumn(
+            drivers.map((d) => [
+                d.name,
+                d.phoneNumber,
+                d.email,
+                d.totalTrips ?? '—',
+                d.rating ?? '—',
+                d.verificationStatus || 'PENDING',
+                d.isAvailable !== false ? 'Yes' : 'No',
+                d.licenseNumber || '—',
+            ]),
+            drivers.map((d) => badgeCell(d.driverId, highPerformerId, BADGES.HIGH_PERFORMER))
+        ),
     };
 
     return (

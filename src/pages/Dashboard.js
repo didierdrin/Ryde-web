@@ -8,6 +8,15 @@ import api from '../services/api';
 import Header from '../components/Header';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { useAuth } from '../context/AuthContext';
+import {
+    BADGES,
+    badgeCell,
+    getHighPerformerId,
+    getMostRentedId,
+    getMostSoldId,
+    getRoyalCustomerId,
+    withBadgeColumn,
+} from '../utils/exportBadges';
 
 const StatCard = ({ title, value, change, icon: Icon, color }) => (
     <div className="bg-white rounded-lg p-6 flex justify-between items-start shadow-sm border border-gray-200">
@@ -188,6 +197,15 @@ const Dashboard = () => {
         );
     }
 
+    const mostRentedId = getMostRentedId(rentals);
+    const mostSoldId = getMostSoldId(listings);
+    const highPerformerId = getHighPerformerId(drivers);
+    const royalCustomerId = getRoyalCustomerId(passengers);
+    const mostRentedVehicle = rentals.find((v) => v.id === mostRentedId);
+    const mostSoldListing = listings.find((l) => l.id === mostSoldId);
+    const highPerformer = drivers.find((d) => d.driverId === highPerformerId);
+    const royalCustomer = passengers.find((p) => p.passengerId === royalCustomerId);
+
     const exportConfig = {
         title: 'RYDE General Report',
         subtitle: `${subtitle} — overview across rides, rentals, for sale${isAdmin ? ', drivers, and passengers' : ''}`,
@@ -198,9 +216,13 @@ const Dashboard = () => {
             { label: isPassenger ? 'Total Spent' : 'Revenue', value: formatCurrency(stats.revenue) },
             { label: 'Rental Vehicles', value: rentals.length },
             { label: 'For Sale Listings', value: listings.length },
+            ...(mostRentedVehicle ? [{ label: 'Most Rented', value: `${mostRentedVehicle.make} ${mostRentedVehicle.model}` }] : []),
+            ...(mostSoldListing ? [{ label: 'Most Sold', value: mostSoldListing.title }] : []),
             ...(isAdmin ? [
                 { label: 'Registered Drivers', value: drivers.length },
                 { label: 'Registered Passengers', value: passengers.length },
+                ...(highPerformer ? [{ label: 'High Performer', value: highPerformer.name }] : []),
+                ...(royalCustomer ? [{ label: 'Royal Customer', value: royalCustomer.name }] : []),
             ] : []),
         ],
         sections: [
@@ -217,50 +239,64 @@ const Dashboard = () => {
             },
             {
                 title: 'Rentals',
-                columns: ['Make', 'Model', 'Year', 'Daily Rate (RWF)', 'Location', 'Status'],
-                rows: rentals.map((v) => [
-                    v.make,
-                    v.model,
-                    v.year ?? '—',
-                    formatRwf(v.dailyRateWithoutDriver ?? v.dailyRate),
-                    v.pickupLocation || '—',
-                    v.isAvailable !== false ? 'Available' : 'Rented',
-                ]),
+                columns: ['Make', 'Model', 'Year', 'Daily Rate (RWF)', 'Location', 'Status', 'Badge'],
+                rows: withBadgeColumn(
+                    rentals.map((v) => [
+                        v.make,
+                        v.model,
+                        v.year ?? '—',
+                        formatRwf(v.dailyRateWithoutDriver ?? v.dailyRate),
+                        v.pickupLocation || '—',
+                        v.isAvailable !== false ? 'Available' : 'Rented',
+                    ]),
+                    rentals.map((v) => badgeCell(v.id, mostRentedId, BADGES.MOST_RENTED))
+                ),
             },
             {
                 title: 'For Sale',
-                columns: ['Title', 'Type', 'Make', 'Model', 'Price (RWF)', 'Status'],
-                rows: listings.map((item) => [
-                    item.title,
-                    item.listingType === 'SELL' ? 'For Sale' : 'Wanted',
-                    item.make || '—',
-                    item.model || '—',
-                    formatRwf(item.price),
-                    item.status || '—',
-                ]),
+                columns: ['Title', 'Type', 'Make', 'Model', 'Price (RWF)', 'Status', 'Badge'],
+                rows: withBadgeColumn(
+                    listings.map((item) => [
+                        item.title,
+                        item.listingType === 'SELL' ? 'For Sale' : 'Wanted',
+                        item.make || '—',
+                        item.model || '—',
+                        formatRwf(item.price),
+                        item.status || '—',
+                    ]),
+                    listings.map((item) => badgeCell(item.id, mostSoldId, BADGES.MOST_SOLD))
+                ),
             },
             ...(isAdmin ? [
                 {
-                    title: 'Driver Admin',
-                    columns: ['Name', 'Phone', 'Email', 'Verification', 'Available'],
-                    rows: drivers.map((d) => [
-                        d.name,
-                        d.phoneNumber,
-                        d.email,
-                        d.verificationStatus || 'PENDING',
-                        d.isAvailable !== false ? 'Yes' : 'No',
-                    ]),
+                    title: 'Drivers',
+                    columns: ['Name', 'Phone', 'Email', 'Trips', 'Rating', 'Verification', 'Available', 'Badge'],
+                    rows: withBadgeColumn(
+                        drivers.map((d) => [
+                            d.name,
+                            d.phoneNumber,
+                            d.email,
+                            d.totalTrips ?? '—',
+                            d.rating ?? '—',
+                            d.verificationStatus || 'PENDING',
+                            d.isAvailable !== false ? 'Yes' : 'No',
+                        ]),
+                        drivers.map((d) => badgeCell(d.driverId, highPerformerId, BADGES.HIGH_PERFORMER))
+                    ),
                 },
                 {
                     title: 'Passengers',
-                    columns: ['Name', 'Phone', 'Email', 'Trips', 'Rating'],
-                    rows: passengers.map((p) => [
-                        p.name,
-                        p.phoneNumber,
-                        p.email,
-                        p.totalTrips ?? '—',
-                        p.rating ?? '—',
-                    ]),
+                    columns: ['Name', 'Phone', 'Email', 'Trips', 'Rating', 'Badge'],
+                    rows: withBadgeColumn(
+                        passengers.map((p) => [
+                            p.name,
+                            p.phoneNumber,
+                            p.email,
+                            p.totalTrips ?? '—',
+                            p.rating ?? '—',
+                        ]),
+                        passengers.map((p) => badgeCell(p.passengerId, royalCustomerId, BADGES.ROYAL_CUSTOMER))
+                    ),
                 },
             ] : []),
         ],
