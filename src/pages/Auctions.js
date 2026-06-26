@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import Header from '../components/Header';
 import { StatusBadge, DetailRow, formatRwf, formatLabel, auctionStatusMeta } from '../components/ui/EntityUI';
-import { Gavel, Plus, Loader, ShoppingBag, Tag, X, User } from 'lucide-react';
+import { CardGridSkeleton } from '../components/ui/Skeleton';
+import { Gavel, Plus, ShoppingBag, Tag, X, User } from 'lucide-react';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&q=80';
 
@@ -175,9 +176,7 @@ const Auctions = () => {
                 </div>
 
                 {loading ? (
-                    <div className="text-center py-12 text-gray-500 flex items-center justify-center gap-2">
-                        <Loader className="animate-spin" size={20} /> Loading listings…
-                    </div>
+                    <CardGridSkeleton count={6} />
                 ) : listings.length === 0 ? (
                     <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
                         <Gavel size={48} className="mx-auto text-gray-300 mb-4" />

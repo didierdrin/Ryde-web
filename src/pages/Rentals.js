@@ -4,6 +4,7 @@ import api from '../services/api';
 import { waitForRentalIntentCompleted } from '../services/paymentPolling';
 import Header from '../components/Header';
 import PaymentConfirmDialog from '../components/PaymentConfirmDialog';
+import { CardGridSkeleton } from '../components/ui/Skeleton';
 import {
     Car,
     Plus,
@@ -311,9 +312,7 @@ const Rentals = () => {
                 )}
 
                 {loading ? (
-                    <div className="text-center py-12 text-gray-500 flex items-center justify-center gap-2">
-                        <Loader className="animate-spin" size={20} /> Loading vehicles…
-                    </div>
+                    <CardGridSkeleton count={6} />
                 ) : vehicles.length === 0 ? (
                     <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
                         <Car size={48} className="mx-auto text-gray-300 mb-4" />

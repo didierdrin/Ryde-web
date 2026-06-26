@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api';
 import Header from '../components/Header';
 import { StatusBadge, DetailRow, driverVerificationMeta } from '../components/ui/EntityUI';
+import { CardGridSkeleton, EntityCardSkeleton } from '../components/ui/Skeleton';
 import { Truck, User, FileText, X, Loader } from 'lucide-react';
 
 const driverToEditForm = (driver) => ({
@@ -109,9 +110,7 @@ const Drivers = () => {
 
             <div className="p-6 flex-1">
                 {loading ? (
-                    <div className="flex justify-center py-10">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-black" />
-                    </div>
+                    <CardGridSkeleton count={6} Card={EntityCardSkeleton} columns="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {drivers.map((driver) => {

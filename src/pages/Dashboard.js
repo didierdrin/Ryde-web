@@ -3,9 +3,10 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar
 } from 'recharts';
-import { Users, Route, DollarSign, Crown, User, Loader } from 'lucide-react';
+import { Users, Route, DollarSign, Crown, User } from 'lucide-react';
 import api from '../services/api';
 import Header from '../components/Header';
+import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { useAuth } from '../context/AuthContext';
 
 const StatCard = ({ title, value, change, icon: Icon, color }) => (
@@ -36,6 +37,11 @@ const StatCard = ({ title, value, change, icon: Icon, color }) => (
 const Dashboard = () => {
     const { isPassenger, isDriver, isAdmin } = useAuth();
     const [recentRides, setRecentRides] = useState([]);
+    const [allTrips, setAllTrips] = useState([]);
+    const [rentals, setRentals] = useState([]);
+    const [listings, setListings] = useState([]);
+    const [drivers, setDrivers] = useState([]);
+    const [passengers, setPassengers] = useState([]);
     const [topDrivers, setTopDrivers] = useState([]);
     const [stats, setStats] = useState({
         totalRides: 0,
@@ -54,6 +60,7 @@ const Dashboard = () => {
             try {
                 const tripsResponse = await api.getTrips();
                 const trips = tripsResponse.trips || [];
+                setAllTrips(trips);
 
                 const completedTrips = trips.filter(t => t.status === 'COMPLETED');
                 const totalRides = trips.length;
@@ -125,6 +132,18 @@ const Dashboard = () => {
                     .sort((a, b) => b.earnings - a.earnings)
                     .slice(0, 5);
                 setTopDrivers(topDriversList);
+
+                const extraLoads = [
+                    api.getRentalVehicles(isAdmin).then((r) => setRentals(r.vehicles || [])).catch(() => setRentals([])),
+                    api.getAuctionListings(null, isAdmin).then((r) => setListings(r.listings || [])).catch(() => setListings([])),
+                ];
+                if (isAdmin) {
+                    extraLoads.push(
+                        api.getAdminDrivers().then((r) => setDrivers(r.drivers || [])).catch(() => setDrivers([])),
+                        api.getAdminPassengers().then((r) => setPassengers(r.passengers || [])).catch(() => setPassengers([])),
+                    );
+                }
+                await Promise.all(extraLoads);
             } catch (error) {
                 console.error("Error fetching dashboard data:", error);
             } finally {
@@ -133,7 +152,17 @@ const Dashboard = () => {
         };
 
         fetchData();
-    }, []);
+    }, [isAdmin]);
+
+    const formatTripDate = (t) => {
+        const d = t?.requestTime || t?.request_time;
+        return d ? new Date(d).toLocaleString() : '—';
+    };
+
+    const formatRwf = (value) => {
+        if (value == null || Number.isNaN(Number(value))) return '—';
+        return Number(value).toLocaleString();
+    };
 
     const formatCurrency = (amount) => {
         if (amount >= 1000000) return `RWF ${(amount / 1000000).toFixed(1)}M`;
@@ -144,41 +173,97 @@ const Dashboard = () => {
     const destinationAddress = (r) => r.destinationAddress || r.destination_address || 'N/A';
     const requestTime = (r) => r.requestTime || r.request_time;
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="flex flex-col items-center">
-                    <Loader className="animate-spin text-blue-600 mb-4" size={32} />
-                    <p className="text-gray-500">Loading Dashboard...</p>
-                </div>
-            </div>
-        );
-    }
-
     const subtitle = isPassenger
         ? 'Your rides and spending at a glance'
         : isDriver
             ? 'Your trips and earnings'
             : 'Manage your transport operations';
 
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <Header title="Dashboard Overview" subtitle={subtitle} />
+                <DashboardSkeleton showAdminExtras={isAdmin} />
+            </div>
+        );
+    }
+
     const exportConfig = {
-        title: 'Dashboard Analytics Report',
-        subtitle,
-        filename: 'ryde-dashboard-analytics',
+        title: 'RYDE General Report',
+        subtitle: `${subtitle} — overview across rides, rentals, for sale${isAdmin ? ', drivers, and passengers' : ''}`,
+        filename: 'ryde-general-report',
         summary: [
             { label: 'Total Rides', value: stats.totalRides.toLocaleString() },
             ...(isAdmin ? [{ label: 'Active Drivers', value: stats.activeDrivers.toLocaleString() }] : []),
             { label: isPassenger ? 'Total Spent' : 'Revenue', value: formatCurrency(stats.revenue) },
-            ...(isAdmin || isDriver ? [{ label: 'Subscribers', value: stats.subscribers.toLocaleString() }] : []),
+            { label: 'Rental Vehicles', value: rentals.length },
+            { label: 'For Sale Listings', value: listings.length },
+            ...(isAdmin ? [
+                { label: 'Registered Drivers', value: drivers.length },
+                { label: 'Registered Passengers', value: passengers.length },
+            ] : []),
         ],
-        columns: ['Trip / Requester', 'From', 'To', 'Status', 'Amount (RWF)'],
-        rows: recentRides.map((ride) => [
-            ride.passengerName || `Trip ${(ride.tripId || ride.id || '').slice(0, 8)}`,
-            pickupAddress(ride),
-            destinationAddress(ride),
-            ride.status || 'REQUESTED',
-            ride.fare ?? 0,
-        ]),
+        sections: [
+            {
+                title: 'Rides & Analytics',
+                columns: ['From', 'To', 'Date', 'Status', 'Fare (RWF)'],
+                rows: allTrips.map((t) => [
+                    pickupAddress(t),
+                    destinationAddress(t),
+                    formatTripDate(t),
+                    t.status || 'REQUESTED',
+                    t.fare ?? 0,
+                ]),
+            },
+            {
+                title: 'Rentals',
+                columns: ['Make', 'Model', 'Year', 'Daily Rate (RWF)', 'Location', 'Status'],
+                rows: rentals.map((v) => [
+                    v.make,
+                    v.model,
+                    v.year ?? '—',
+                    formatRwf(v.dailyRateWithoutDriver ?? v.dailyRate),
+                    v.pickupLocation || '—',
+                    v.isAvailable !== false ? 'Available' : 'Rented',
+                ]),
+            },
+            {
+                title: 'For Sale',
+                columns: ['Title', 'Type', 'Make', 'Model', 'Price (RWF)', 'Status'],
+                rows: listings.map((item) => [
+                    item.title,
+                    item.listingType === 'SELL' ? 'For Sale' : 'Wanted',
+                    item.make || '—',
+                    item.model || '—',
+                    formatRwf(item.price),
+                    item.status || '—',
+                ]),
+            },
+            ...(isAdmin ? [
+                {
+                    title: 'Driver Admin',
+                    columns: ['Name', 'Phone', 'Email', 'Verification', 'Available'],
+                    rows: drivers.map((d) => [
+                        d.name,
+                        d.phoneNumber,
+                        d.email,
+                        d.verificationStatus || 'PENDING',
+                        d.isAvailable !== false ? 'Yes' : 'No',
+                    ]),
+                },
+                {
+                    title: 'Passengers',
+                    columns: ['Name', 'Phone', 'Email', 'Trips', 'Rating'],
+                    rows: passengers.map((p) => [
+                        p.name,
+                        p.phoneNumber,
+                        p.email,
+                        p.totalTrips ?? '—',
+                        p.rating ?? '—',
+                    ]),
+                },
+            ] : []),
+        ],
     };
 
     return (

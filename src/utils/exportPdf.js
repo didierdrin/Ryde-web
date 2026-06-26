@@ -32,9 +32,16 @@ function cellValue(value) {
 }
 
 /**
- * @param {{ title: string, subtitle?: string, columns: string[], rows: (string|number)[][], summary?: { label: string, value: string }[] }} config
+ * @param {{
+ *   title: string,
+ *   subtitle?: string,
+ *   columns?: string[],
+ *   rows?: (string|number)[][],
+ *   summary?: { label: string, value: string }[],
+ *   sections?: { title: string, columns: string[], rows: (string|number)[][] }[]
+ * }} config
  */
-export async function generateReportPdf({ title, subtitle, columns, rows, summary = [] }) {
+export async function generateReportPdf({ title, subtitle, columns, rows, summary = [], sections = [] }) {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const logo = await loadLogoDataUrl();
     const generatedAt = new Date().toLocaleString();
@@ -92,18 +99,47 @@ export async function generateReportPdf({ title, subtitle, columns, rows, summar
         startY = doc.lastAutoTable.finalY + 8;
     }
 
-    const tableBody = (rows || []).map((row) => row.map(cellValue));
+    const renderTable = (tableColumns, tableRows, y) => {
+        const tableBody = (tableRows || []).map((row) => row.map(cellValue));
+        autoTable(doc, {
+            startY: y,
+            head: [tableColumns],
+            body: tableBody.length > 0 ? tableBody : [['No records']],
+            theme: 'striped',
+            styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
+            headStyles: { fillColor: [17, 24, 39], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [249, 250, 251] },
+            margin: { left: 14, right: 14 },
+        });
+        return doc.lastAutoTable.finalY + 8;
+    };
 
-    autoTable(doc, {
-        startY,
-        head: [columns],
-        body: tableBody.length > 0 ? tableBody : [['No records to export']],
-        theme: 'striped',
-        styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
-        headStyles: { fillColor: [17, 24, 39], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [249, 250, 251] },
-        margin: { left: 14, right: 14 },
+    const reportSections = sections.length > 0
+        ? sections
+        : columns
+            ? [{ title: null, columns, rows: rows || [] }]
+            : [];
+
+    reportSections.forEach((section) => {
+        if (startY > doc.internal.pageSize.getHeight() - 40) {
+            doc.addPage();
+            startY = 20;
+        }
+
+        if (section.title) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(17, 24, 39);
+            doc.text(section.title, 14, startY);
+            startY += 6;
+        }
+
+        startY = renderTable(section.columns, section.rows, startY);
     });
+
+    if (reportSections.length === 0) {
+        renderTable(['Info'], [['No data to export']], startY);
+    }
 
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i += 1) {
