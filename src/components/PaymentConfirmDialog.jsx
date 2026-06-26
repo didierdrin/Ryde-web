@@ -3,14 +3,51 @@ import { CheckCircle, Loader, XCircle } from 'lucide-react';
 import { paymentOutcomeMessage } from '../services/paymentPolling';
 
 /**
- * Shows a blocking dialog while polling the backend for webhook-confirmed payment status.
+ * Payment confirmation dialog.
+ *
+ * When [clientConfirmed] is true (IremboPay widget callback succeeded), success is shown
+ * immediately — same pattern as MozyPizza checkout. Optional [poll] runs in the background
+ * to sync when the webhook updates the DB; the UI does not block on it.
  */
-const PaymentConfirmDialog = ({ open, title, poll, successMessage, onClose, onOutcome }) => {
-  const [phase, setPhase] = useState('polling');
-  const [message, setMessage] = useState('Confirming your payment…');
+const PaymentConfirmDialog = ({
+  open,
+  title,
+  poll,
+  successMessage,
+  clientConfirmed = false,
+  onClose,
+  onOutcome,
+}) => {
+  const [phase, setPhase] = useState(clientConfirmed ? 'success' : 'polling');
+  const [message, setMessage] = useState(
+    clientConfirmed ? (successMessage || 'Payment successful!') : 'Confirming your payment…',
+  );
 
   useEffect(() => {
-    if (!open || !poll) return undefined;
+    if (!open) return undefined;
+
+    if (clientConfirmed) {
+      setPhase('success');
+      setMessage(successMessage || 'Payment successful!');
+
+      if (!poll) return undefined;
+
+      let cancelled = false;
+      (async () => {
+        try {
+          const outcome = await poll();
+          if (cancelled) return;
+          onOutcome?.(outcome);
+        } catch (e) {
+          if (cancelled) return;
+          onOutcome?.('ERROR');
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }
 
     let cancelled = false;
     setPhase('polling');
@@ -18,7 +55,7 @@ const PaymentConfirmDialog = ({ open, title, poll, successMessage, onClose, onOu
 
     (async () => {
       try {
-        const outcome = await poll();
+        const outcome = await poll?.();
         if (cancelled) return;
         const text = paymentOutcomeMessage(outcome, {
           successTrip: successMessage,
@@ -38,7 +75,7 @@ const PaymentConfirmDialog = ({ open, title, poll, successMessage, onClose, onOu
     return () => {
       cancelled = true;
     };
-  }, [open, poll, successMessage, onOutcome]);
+  }, [open, poll, successMessage, clientConfirmed, onOutcome]);
 
   if (!open) return null;
 
@@ -51,13 +88,15 @@ const PaymentConfirmDialog = ({ open, title, poll, successMessage, onClose, onOu
             <>
               <Loader className="animate-spin text-blue-600" size={40} />
               <p className="text-gray-600 text-sm">{message}</p>
-              <p className="text-xs text-gray-400">Waiting for payment confirmation from the server…</p>
             </>
           )}
           {phase === 'success' && (
             <>
               <CheckCircle className="text-green-600" size={48} />
               <p className="text-green-800 font-medium">{message}</p>
+              {clientConfirmed && (
+                <p className="text-xs text-gray-400">Your receipt will sync automatically.</p>
+              )}
             </>
           )}
           {(phase === 'failed' || phase === 'timeout') && (

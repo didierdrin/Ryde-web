@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { waitForRentalIntentCompleted } from '../services/paymentPolling';
+import { waitForRentalIntentCompleted, syncRentalIntentInBackground } from '../services/paymentPolling';
 import Header from '../components/Header';
 import PaymentConfirmDialog from '../components/PaymentConfirmDialog';
 import { CardGridSkeleton } from '../components/ui/Skeleton';
@@ -111,7 +111,7 @@ const Rentals = () => {
     const [rentWithDriver, setRentWithDriver] = useState(false);
     const [payingVehicleId, setPayingVehicleId] = useState(null);
     const [error, setError] = useState(null);
-    const [paymentConfirm, setPaymentConfirm] = useState({ open: false, intentId: null, vehicleLabel: '' });
+    const [paymentConfirm, setPaymentConfirm] = useState({ open: false, intentId: null, vehicleLabel: '', clientConfirmed: false });
 
     const loadVehicles = useCallback(async () => {
         setLoading(true);
@@ -241,7 +241,9 @@ const Rentals = () => {
                             open: true,
                             intentId,
                             vehicleLabel: `${vehicle.make} ${vehicle.model}`,
+                            clientConfirmed: true,
                         });
+                        syncRentalIntentInBackground(intentId);
                         closeVehicleDetails();
                     } else {
                         alert('Payment failed or was cancelled.');
@@ -700,10 +702,11 @@ const Rentals = () => {
                 open={paymentConfirm.open}
                 title="Rental payment"
                 successMessage={`Booking confirmed for ${paymentConfirm.vehicleLabel}. Payment successful!`}
+                clientConfirmed={paymentConfirm.clientConfirmed}
                 poll={paymentConfirm.intentId
                     ? () => waitForRentalIntentCompleted(paymentConfirm.intentId)
                     : null}
-                onClose={() => setPaymentConfirm({ open: false, intentId: null, vehicleLabel: '' })}
+                onClose={() => setPaymentConfirm({ open: false, intentId: null, vehicleLabel: '', clientConfirmed: false })}
             />
         </div>
     );

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { getRouteDistanceKm, geocodeAddress, estimateFare } from '../services/googleMaps';
-import { waitForTripPaymentCompleted } from '../services/paymentPolling';
+import { waitForTripPaymentCompleted, syncTripPaymentInBackground } from '../services/paymentPolling';
 import { normalizeTrip, isTrackableStatus, tripIdOf } from '../utils/tripUtils';
 import Header from '../components/Header';
 import PaymentConfirmDialog from '../components/PaymentConfirmDialog';
@@ -174,7 +174,13 @@ const Trips = ({ nestedInRides = false }) => {
     const [requestError, setRequestError] = useState('');
     const [payingTripId, setPayingTripId] = useState(null);
     const [paymentByTrip, setPaymentByTrip] = useState({});
-    const [paymentConfirm, setPaymentConfirm] = useState({ open: false, tripId: null });
+    const [paymentConfirm, setPaymentConfirm] = useState({ open: false, tripId: null, clientConfirmed: false });
+    const [optimisticPaidTrips, setOptimisticPaidTrips] = useState(() => new Set());
+
+    const markTripPaidOptimistically = useCallback((tripId) => {
+        setOptimisticPaidTrips((prev) => new Set(prev).add(tripId));
+        setPaymentByTrip((prev) => ({ ...prev, [tripId]: 'COMPLETED' }));
+    }, []);
 
     const loadPaymentStatuses = useCallback(async (tripList) => {
         if (!isPassenger || !tripList?.length) {
@@ -185,15 +191,25 @@ const Trips = ({ nestedInRides = false }) => {
             tripList.map(async (t) => {
                 try {
                     const { payment } = await api.getPaymentByTrip(t.tripId);
-                    const status = (payment?.payment_status || payment?.paymentStatus || 'PENDING').toUpperCase();
+                    let status = (payment?.payment_status || payment?.paymentStatus || 'PENDING').toUpperCase();
+                    if (status === 'COMPLETED') {
+                        setOptimisticPaidTrips((prev) => {
+                            if (!prev.has(t.tripId)) return prev;
+                            const next = new Set(prev);
+                            next.delete(t.tripId);
+                            return next;
+                        });
+                    } else if (optimisticPaidTrips.has(t.tripId)) {
+                        status = 'COMPLETED';
+                    }
                     return [t.tripId, status];
                 } catch {
-                    return [t.tripId, null];
+                    return [t.tripId, optimisticPaidTrips.has(t.tripId) ? 'COMPLETED' : null];
                 }
             })
         );
         setPaymentByTrip(Object.fromEntries(entries));
-    }, [isPassenger]);
+    }, [isPassenger, optimisticPaidTrips]);
 
     const fetchMyTrips = useCallback(async () => {
         try {
@@ -285,7 +301,9 @@ const Trips = ({ nestedInRides = false }) => {
                 callback: (err) => {
                     setPayingTripId(null);
                     if (!err) {
-                        setPaymentConfirm({ open: true, tripId });
+                        markTripPaidOptimistically(tripId);
+                        setPaymentConfirm({ open: true, tripId, clientConfirmed: true });
+                        syncTripPaymentInBackground(tripId, () => fetchMyTrips());
                     } else {
                         alert('Payment failed or was cancelled.');
                     }
@@ -594,11 +612,12 @@ const Trips = ({ nestedInRides = false }) => {
                 open={paymentConfirm.open}
                 title="Trip payment"
                 successMessage="Payment successful! Your trip is paid."
+                clientConfirmed={paymentConfirm.clientConfirmed}
                 poll={paymentConfirm.tripId
                     ? () => waitForTripPaymentCompleted(paymentConfirm.tripId)
                     : null}
                 onOutcome={() => fetchMyTrips()}
-                onClose={() => setPaymentConfirm({ open: false, tripId: null })}
+                onClose={() => setPaymentConfirm({ open: false, tripId: null, clientConfirmed: false })}
             />
         </div>
     );

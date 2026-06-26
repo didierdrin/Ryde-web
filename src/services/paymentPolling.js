@@ -46,3 +46,12 @@ export function paymentOutcomeMessage(outcome, { successTrip, successRental, fai
   }
   return timeout || 'Payment is still processing. Pull to refresh or check again shortly.';
 }
+
+/** Fire-and-forget webhook sync after IremboPay client callback confirmed payment. */
+export function syncTripPaymentInBackground(tripId, onOutcome) {
+  waitForTripPaymentCompleted(tripId).then(onOutcome).catch(() => onOutcome?.('ERROR'));
+}
+
+export function syncRentalIntentInBackground(intentId, onOutcome) {
+  waitForRentalIntentCompleted(intentId).then(onOutcome).catch(() => onOutcome?.('ERROR'));
+}
