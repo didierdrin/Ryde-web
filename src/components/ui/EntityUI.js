@@ -51,21 +51,17 @@ export const auctionStatusMeta = (status) => {
 };
 
 export const rideStatusMeta = (ride) => {
-    if (ride.source === 'api') {
-        const status = ride.status || 'REQUESTED';
-        const tones = {
-            REQUESTED: 'warning',
-            ACCEPTED: 'info',
-            IN_PROGRESS: 'indigo',
-            COMPLETED: 'success',
-            CANCELLED: 'danger',
-        };
-        return { label: formatLabel(status), tone: tones[status] || 'neutral' };
-    }
-    if (ride.completed) return { label: 'Completed', tone: 'success' };
-    if (ride.isRideStarted) return { label: 'Started', tone: 'indigo' };
-    if (ride.pending) return { label: 'Pending', tone: 'warning' };
-    return { label: 'Active', tone: 'info' };
+    const status = ride.status || (ride.pending ? 'REQUESTED' : ride.isRideStarted ? 'IN_PROGRESS' : 'REQUESTED');
+    const tones = {
+        REQUESTED: 'warning',
+        ACCEPTED: 'info',
+        IN_PROGRESS: 'indigo',
+        COMPLETED: 'success',
+        CANCELLED: 'danger',
+        PENDING: 'warning',
+        STARTED: 'indigo',
+    };
+    return { label: formatLabel(status), tone: tones[status] || 'neutral' };
 };
 
 export const driverVerificationMeta = (status) => {

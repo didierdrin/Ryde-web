@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { db } from '../firebase';
-import { collection, getDocs, deleteDoc, doc, addDoc, Timestamp } from 'firebase/firestore';
+import api from '../services/api';
 import Header from '../components/Header';
 import { CreditCard, Calendar, Trash2, Plus } from 'lucide-react';
 
 const PLANS = [
-    { id: 'basic', name: 'Basic Driver', amount: 10000, duration: '30 days' },
-    { id: 'premium', name: 'Premium Driver', amount: 15000, duration: '30 days' },
+    { id: 'BASIC', name: 'Basic Driver', amount: 10000, duration: '30 days' },
+    { id: 'PREMIUM', name: 'Premium Driver', amount: 15000, duration: '30 days' },
 ];
 
 function DriverSubscriptionView() {
@@ -44,16 +43,17 @@ function DriverSubscriptionView() {
 }
 
 function AdminSubscriptionView() {
-    const [subscriptions, setSubscription] = useState([]);
+    const [subscriptions, setSubscriptions] = useState([]);
+    const [drivers, setDrivers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const fetchSubscriptions = async () => {
         try {
             setLoading(true);
-            const subSnapshot = await getDocs(collection(db, 'subscriptions'));
-            setSubscription(subSnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+            const { subscriptions: data } = await api.getAdminSubscriptions();
+            setSubscriptions(data || []);
         } catch (error) {
-            console.error("Error fetching subscriptions:", error);
+            console.error('Error fetching subscriptions:', error);
         } finally {
             setLoading(false);
         }
@@ -61,33 +61,41 @@ function AdminSubscriptionView() {
 
     useEffect(() => {
         fetchSubscriptions();
+        api.getAdminDrivers()
+            .then((res) => setDrivers(res.drivers || []))
+            .catch(() => setDrivers([]));
     }, []);
 
     const handleCancel = async (id) => {
-        if (!window.confirm("Cancel this subscription?")) return;
+        if (!window.confirm('Cancel this subscription?')) return;
         try {
-            await deleteDoc(doc(db, 'subscriptions', id));
-            setSubscription(prev => prev.filter(s => s.id !== id));
+            await api.cancelAdminSubscription(id);
+            setSubscriptions((prev) => prev.filter((s) => s.id !== id));
         } catch (error) {
             console.error(error);
-            alert("Failed to cancel");
+            alert('Failed to cancel');
         }
     };
 
-    const addMockSubscription = async () => {
+    const addTestSubscription = async () => {
+        const driver = drivers[0];
+        if (!driver) {
+            alert('No drivers in the database. Add a driver first.');
+            return;
+        }
         try {
-            await addDoc(collection(db, 'subscriptions'), {
-                userId: "admin-test@ryde.rw",
-                userName: "Test Driver",
-                plan: "Premium Driver",
-                amount: 15000,
-                status: "active",
-                startDate: Timestamp.now(),
-                endDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+            const start = new Date();
+            const end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            await api.createAdminSubscription({
+                driverId: driver.driverId || driver.driver_id,
+                tier: 'PREMIUM',
+                startDate: start.toISOString().slice(0, 10),
+                endDate: end.toISOString().slice(0, 10),
             });
             fetchSubscriptions();
         } catch (error) {
             console.error(error);
+            alert(error.message || 'Failed to create subscription');
         }
     };
 
@@ -96,7 +104,7 @@ function AdminSubscriptionView() {
             <Header title="Subscriptions" subtitle="Manage Driver Subscriptions" />
             <div className="p-6">
                 <div className="flex justify-end mb-6">
-                    <button type="button" onClick={addMockSubscription} className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 text-sm">
+                    <button type="button" onClick={addTestSubscription} className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 text-sm">
                         <Plus size={16} /> Add Test Subscription
                     </button>
                 </div>
@@ -113,7 +121,7 @@ function AdminSubscriptionView() {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User / Driver</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
@@ -126,37 +134,39 @@ function AdminSubscriptionView() {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
                                                 <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                                                    {sub.userName ? sub.userName[0] : 'U'}
+                                                    {(sub.driverName || 'D')[0]}
                                                 </div>
                                                 <div className="ml-4">
-                                                    <div className="text-sm font-medium text-gray-900">{sub.userName || sub.userId}</div>
-                                                    <div className="text-sm text-gray-500">{sub.userId}</div>
+                                                    <div className="text-sm font-medium text-gray-900">{sub.driverName || sub.driverId}</div>
+                                                    <div className="text-sm text-gray-500">{sub.driverPhone}</div>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-gray-900">{sub.plan}</div>
-                                            <div className="text-xs text-gray-500">{sub.amount} RWF/mo</div>
+                                            <div className="text-sm font-medium text-gray-900">{sub.tier || sub.plan}</div>
+                                            <div className="text-xs text-gray-500">{sub.commissionRate}% commission</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sub.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                {(sub.status || '').toUpperCase()}
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sub.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                {sub.isActive ? 'ACTIVE' : 'CANCELLED'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex flex-col text-sm text-gray-500">
-                                                <span className="flex items-center gap-1"><Calendar size={12} /> Start: {sub.startDate?.seconds ? new Date(sub.startDate.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
-                                                <span className="flex items-center gap-1"><Calendar size={12} /> End: {sub.endDate?.seconds ? new Date(sub.endDate.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
+                                                <span className="flex items-center gap-1"><Calendar size={12} /> Start: {sub.startDate ? new Date(sub.startDate).toLocaleDateString() : 'N/A'}</span>
+                                                <span className="flex items-center gap-1"><Calendar size={12} /> End: {sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'N/A'}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleCancel(sub.id)}
-                                                className="text-red-600 hover:text-red-900 flex items-center gap-1 ml-auto"
-                                            >
-                                                <Trash2 size={16} /> Cancel
-                                            </button>
+                                            {sub.isActive && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleCancel(sub.id)}
+                                                    className="text-red-600 hover:text-red-900 flex items-center gap-1 ml-auto"
+                                                >
+                                                    <Trash2 size={16} /> Cancel
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

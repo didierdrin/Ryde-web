@@ -368,6 +368,38 @@ class ApiService {
     });
   }
 
+  async getAdminTrips({ active = false, status = null } = {}) {
+    const params = new URLSearchParams();
+    if (active) params.set('active', 'true');
+    else if (status) params.set('status', status);
+    const qs = params.toString();
+    return this.request(`/admin/trips${qs ? `?${qs}` : ''}`);
+  }
+
+  async createAdminTrip(tripData) {
+    return this.request('/admin/trips', {
+      method: 'POST',
+      body: JSON.stringify(tripData),
+    });
+  }
+
+  async getAdminSubscriptions() {
+    return this.request('/admin/subscriptions');
+  }
+
+  async createAdminSubscription(data) {
+    return this.request('/admin/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async cancelAdminSubscription(subscriptionId) {
+    return this.request(`/admin/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: 'DELETE',
+    });
+  }
+
   async sendExportEmail({ email, filename, reportTitle, pdfBase64 }) {
     return this.request('/export/email', {
       method: 'POST',
