@@ -66,6 +66,11 @@ class ApiService {
 
       return data;
     } catch (error) {
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new Error(
+          'Could not reach the server. The export may be too large, or the backend may be restarting. Try Download PDF, or retry in a moment.'
+        );
+      }
       console.error('API request failed:', error);
       throw error;
     }
