@@ -131,9 +131,29 @@ const Auctions = () => {
         item.status === 'ACTIVE' &&
         item.userId !== user?.userId;
 
+    const exportConfig = {
+        title: 'For Sale Report',
+        subtitle: 'Buy and sell vehicles on Ryde',
+        filename: 'ryde-for-sale',
+        summary: [
+            { label: 'Total listings', value: listings.length },
+            { label: 'Filter', value: filter === 'ALL' ? 'All' : filter },
+        ],
+        columns: ['Title', 'Type', 'Make', 'Model', 'Year', 'Price (RWF)', 'Status'],
+        rows: listings.map((item) => [
+            item.title,
+            item.listingType === 'SELL' ? 'For Sale' : 'Wanted',
+            item.make || '—',
+            item.model || '—',
+            item.year ?? '—',
+            item.price != null ? Number(item.price).toLocaleString() : '—',
+            item.status || '—',
+        ]),
+    };
+
     return (
         <div className="min-h-screen bg-gray-50">
-            <Header title="Vehicle For Sale" subtitle="Buy and sell vehicles on Ryde" />
+            <Header title="Vehicle For Sale" subtitle="Buy and sell vehicles on Ryde" exportConfig={exportConfig} />
 
             <div className="max-w-6xl mx-auto p-6">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">

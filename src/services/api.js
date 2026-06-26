@@ -367,6 +367,13 @@ class ApiService {
       body: JSON.stringify(data),
     });
   }
+
+  async sendExportEmail({ email, filename, reportTitle, pdfBase64 }) {
+    return this.request('/export/email', {
+      method: 'POST',
+      body: JSON.stringify({ email, filename, reportTitle, pdfBase64 }),
+    });
+  }
 }
 
 const apiService = new ApiService();

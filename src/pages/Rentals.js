@@ -258,11 +258,32 @@ const Rentals = () => {
             : (selectedVehicle.dailyRateWithoutDriver ?? selectedVehicle.dailyRate))
         : 0;
 
+    const exportConfig = {
+        title: 'Rentals Report',
+        subtitle: isPassenger ? 'Rent a vehicle — pay with IremboPay' : 'Add and manage rental vehicles',
+        filename: 'ryde-rentals',
+        summary: [
+            { label: 'Total vehicles', value: vehicles.length },
+            { label: 'Available', value: vehicles.filter((v) => isVehicleAvailable(v)).length },
+        ],
+        columns: ['Make', 'Model', 'Year', 'Type', 'Daily rate', 'Location', 'Status'],
+        rows: vehicles.map((v) => [
+            v.make,
+            v.model,
+            v.year ?? '—',
+            formatLabel(v.type || v.vehicleType),
+            formatRwf(displayDailyRate(v)),
+            v.pickupLocation || '—',
+            isVehicleAvailable(v) ? 'Available' : 'Rented',
+        ]),
+    };
+
     return (
         <div className="min-h-screen bg-gray-50">
             <Header
                 title="Rentals"
                 subtitle={isPassenger ? 'Rent a vehicle — pay with IremboPay' : 'Add and manage rental vehicles'}
+                exportConfig={exportConfig}
             />
 
             <div className="max-w-6xl mx-auto p-6">

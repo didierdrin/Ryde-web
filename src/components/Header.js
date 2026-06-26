@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Search, Bell, User, ArrowLeft } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ExportDropdown from './ExportDropdown';
 
 const formatRole = (userType) => {
     if (!userType) return 'User';
@@ -9,7 +10,7 @@ const formatRole = (userType) => {
     return labels[userType] || userType;
 };
 
-const Header = ({ title, subtitle, onBack, backLabel = 'Back' }) => {
+const Header = ({ title, subtitle, onBack, backLabel = 'Back', exportConfig, actions }) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState('');
@@ -51,8 +52,15 @@ const Header = ({ title, subtitle, onBack, backLabel = 'Back' }) => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-6">
-                    <div className="relative w-80">
+                <div className="flex items-center gap-4">
+                    {(exportConfig || actions) && (
+                        <div className="flex items-center gap-2 shrink-0">
+                            {actions}
+                            {exportConfig && <ExportDropdown exportConfig={exportConfig} />}
+                        </div>
+                    )}
+
+                    <div className="relative w-80 hidden xl:block">
                         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                         <input
                             type="text"

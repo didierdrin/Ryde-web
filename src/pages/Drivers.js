@@ -87,9 +87,25 @@ const Drivers = () => {
         );
     }
 
+    const exportConfig = {
+        title: 'Drivers Report',
+        subtitle: 'Approve and manage drivers',
+        filename: 'ryde-drivers',
+        summary: [{ label: 'Total drivers', value: drivers.length }],
+        columns: ['Name', 'Phone', 'Email', 'Verification', 'Available', 'License'],
+        rows: drivers.map((d) => [
+            d.name,
+            d.phoneNumber,
+            d.email,
+            d.verificationStatus || 'PENDING',
+            d.isAvailable !== false ? 'Yes' : 'No',
+            d.licenseNumber || '—',
+        ]),
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
-            <Header title="Drivers Management" subtitle="Approve and manage drivers" />
+            <Header title="Drivers Management" subtitle="Approve and manage drivers" exportConfig={exportConfig} />
 
             <div className="p-6 flex-1">
                 {loading ? (

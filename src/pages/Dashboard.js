@@ -161,9 +161,29 @@ const Dashboard = () => {
             ? 'Your trips and earnings'
             : 'Manage your transport operations';
 
+    const exportConfig = {
+        title: 'Dashboard Analytics Report',
+        subtitle,
+        filename: 'ryde-dashboard-analytics',
+        summary: [
+            { label: 'Total Rides', value: stats.totalRides.toLocaleString() },
+            ...(isAdmin ? [{ label: 'Active Drivers', value: stats.activeDrivers.toLocaleString() }] : []),
+            { label: isPassenger ? 'Total Spent' : 'Revenue', value: formatCurrency(stats.revenue) },
+            ...(isAdmin || isDriver ? [{ label: 'Subscribers', value: stats.subscribers.toLocaleString() }] : []),
+        ],
+        columns: ['Trip / Requester', 'From', 'To', 'Status', 'Amount (RWF)'],
+        rows: recentRides.map((ride) => [
+            ride.passengerName || `Trip ${(ride.tripId || ride.id || '').slice(0, 8)}`,
+            pickupAddress(ride),
+            destinationAddress(ride),
+            ride.status || 'REQUESTED',
+            ride.fare ?? 0,
+        ]),
+    };
+
     return (
         <div className="min-h-screen bg-gray-50">
-            <Header title="Dashboard Overview" subtitle={subtitle} />
+            <Header title="Dashboard Overview" subtitle={subtitle} exportConfig={exportConfig} />
 
             <div className="max-w-7xl mx-auto p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -260,6 +260,22 @@ function AdminLiveMapView() {
     }));
     const allRides = [...instantTrips, ...poolRides.map((ride) => ({ ...ride, source: 'firebase' }))];
 
+    const exportConfig = {
+        title: 'Active Rides Report',
+        subtitle: 'Real-time GPS',
+        filename: 'ryde-active-rides',
+        summary: [{ label: 'Active rides', value: allRides.length }],
+        columns: ['Passenger', 'Pickup', 'Dropoff', 'Fare/Price', 'Status', 'Source'],
+        rows: allRides.map((ride) => [
+            ride.user || ride.passengerName || '—',
+            ride.pickupLocation?.address || ride.pickupAddress || '—',
+            ride.dropoffLocation?.address || ride.dropoffAddress || '—',
+            ride.pricePerSeat ?? ride.price ?? ride.fare ?? '—',
+            ride.status || (ride.pending ? 'REQUESTED' : 'ACTIVE'),
+            ride.source || 'firebase',
+        ]),
+    };
+
     const onLoad = useCallback((mapInstance) => setMap(mapInstance), []);
     const onUnmount = useCallback(() => setMap(null), []);
 
@@ -407,7 +423,7 @@ function AdminLiveMapView() {
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
-            <Header title="Live Map Tracking" subtitle="Real-time GPS" />
+            <Header title="Live Map Tracking" subtitle="Real-time GPS" exportConfig={exportConfig} />
             <div className="relative flex-1 h-[calc(100vh-80px)]">
                 <GoogleMap
                     mapContainerStyle={mapContainerStyle}

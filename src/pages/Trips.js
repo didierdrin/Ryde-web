@@ -370,6 +370,22 @@ const Trips = ({ nestedInRides = false }) => {
 
     const formatDate = (d) => d ? new Date(d).toLocaleString() : '—';
 
+    const exportConfig = {
+        title: 'Rides Report',
+        subtitle: isPassenger ? 'Your booked rides' : isDriver ? 'Your rides & available trips' : 'All trips',
+        filename: 'ryde-rides',
+        summary: [{ label: 'Total trips', value: trips.length }],
+        columns: ['From', 'To', 'Date', 'Distance', 'Status', 'Fare (RWF)'],
+        rows: trips.map((t) => [
+            t.pickupAddress || '—',
+            t.destinationAddress || '—',
+            formatDate(t.requestTime),
+            t.distance != null ? `${Number(t.distance).toFixed(1)} km` : '—',
+            t.status,
+            t.fare ?? 0,
+        ]),
+    };
+
     return (
         <div className="min-h-screen bg-gray-50">
             <Header
@@ -377,6 +393,7 @@ const Trips = ({ nestedInRides = false }) => {
                 subtitle={isPassenger ? 'Your booked rides' : isDriver ? 'Your rides & available trips' : 'All trips'}
                 onBack={nestedInRides ? () => navigate('/app/rides') : undefined}
                 backLabel="Back to Rides"
+                exportConfig={exportConfig}
             />
 
             <div className="max-w-6xl mx-auto p-6">

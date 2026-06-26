@@ -97,9 +97,27 @@ const Passengers = () => {
         );
     }
 
+    const exportConfig = {
+        title: 'Passengers Report',
+        subtitle: 'Registered passengers',
+        filename: 'ryde-passengers',
+        summary: [
+            { label: 'Total passengers', value: passengers.length },
+            { label: 'Showing', value: filteredPassengers.length },
+        ],
+        columns: ['Name', 'Phone', 'Email', 'Trips', 'Rating'],
+        rows: filteredPassengers.map((p) => [
+            p.name,
+            p.phoneNumber,
+            p.email,
+            p.totalTrips ?? '—',
+            p.rating ?? '—',
+        ]),
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
-            <Header title="Passengers" subtitle="Registered passengers" />
+            <Header title="Passengers" subtitle="Registered passengers" exportConfig={exportConfig} />
 
             <div className="p-6 flex-1">
                 <div className="mb-6 relative max-w-md">
