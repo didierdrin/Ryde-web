@@ -25,7 +25,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar }) => {
        // { to: '/app/mechanics', icon: Wrench, label: 'Mechanics', roles: ['PASSENGER', 'DRIVER', 'ADMIN'] },
         { to: '/app/available-drivers', icon: UserSearch, label: 'Drivers', roles: ['PASSENGER'] },
         { to: '/app/rides', icon: Car, label: 'Rides', roles: ['ADMIN'] },
-        { to: '/app/drivers', icon: Users, label: 'Driver Admin', roles: ['ADMIN'] },
+        { to: '/app/drivers', icon: Users, label: 'Drivers', roles: ['ADMIN'] },
         { to: '/app/passengers', icon: User, label: 'Passengers', roles: ['ADMIN'] },
         //{ to: '/app/subscription', icon: Crown, label: 'Subscription', roles: ['ADMIN'] },
     ];
