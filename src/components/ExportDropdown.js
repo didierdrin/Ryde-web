@@ -1,43 +1,80 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Download, Loader, Mail } from 'lucide-react';
+import { ChevronDown, Download, Loader, Mail, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { downloadReportPdf, generateReportPdf, pdfToBase64 } from '../utils/exportPdf';
 
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+
 const ExportDropdown = ({ exportConfig, disabled = false, className = '' }) => {
     const { user } = useAuth();
     const [open, setOpen] = useState(false);
+    const [showEmailForm, setShowEmailForm] = useState(false);
+    const [recipientEmail, setRecipientEmail] = useState('');
     const [busy, setBusy] = useState(false);
     const containerRef = useRef(null);
+    const emailInputRef = useRef(null);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (containerRef.current && !containerRef.current.contains(e.target)) {
                 setOpen(false);
+                setShowEmailForm(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const runExport = async (mode) => {
+    useEffect(() => {
+        if (showEmailForm && emailInputRef.current) {
+            emailInputRef.current.focus();
+        }
+    }, [showEmailForm]);
+
+    const closeMenu = () => {
+        setOpen(false);
+        setShowEmailForm(false);
+    };
+
+    const runDownload = async () => {
         if (!exportConfig || busy || disabled) return;
         setBusy(true);
-        setOpen(false);
+        closeMenu();
+        try {
+            const doc = await generateReportPdf(exportConfig);
+            downloadReportPdf(doc, exportConfig.filename || 'ryde-export');
+        } catch (err) {
+            alert(err.message || 'Export failed. Please try again.');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const openEmailForm = () => {
+        setShowEmailForm(true);
+        setRecipientEmail(exportConfig?.email || user?.email || '');
+    };
+
+    const runEmailExport = async (e) => {
+        e.preventDefault();
+        if (!exportConfig || busy || disabled) return;
+
+        const recipient = recipientEmail.trim();
+        if (!recipient) {
+            alert('Please enter an email address.');
+            return;
+        }
+        if (!isValidEmail(recipient)) {
+            alert('Please enter a valid email address.');
+            return;
+        }
+
+        setBusy(true);
+        closeMenu();
         try {
             const doc = await generateReportPdf(exportConfig);
             const filename = exportConfig.filename || 'ryde-export';
-
-            if (mode === 'download') {
-                downloadReportPdf(doc, filename);
-                return;
-            }
-
-            const recipient = exportConfig.email || user?.email;
-            if (!recipient) {
-                alert('No email address found. Please update your profile or download the PDF instead.');
-                return;
-            }
 
             await api.sendExportEmail({
                 email: recipient,
@@ -46,10 +83,20 @@ const ExportDropdown = ({ exportConfig, disabled = false, className = '' }) => {
                 pdfBase64: pdfToBase64(doc),
             });
             alert(`Report sent to ${recipient}`);
+            setRecipientEmail('');
         } catch (err) {
             alert(err.message || 'Export failed. Please try again.');
         } finally {
             setBusy(false);
+        }
+    };
+
+    const toggleMenu = () => {
+        if (open) {
+            closeMenu();
+        } else {
+            setOpen(true);
+            setShowEmailForm(false);
         }
     };
 
@@ -60,7 +107,7 @@ const ExportDropdown = ({ exportConfig, disabled = false, className = '' }) => {
             <button
                 type="button"
                 disabled={disabled || busy}
-                onClick={() => setOpen((v) => !v)}
+                onClick={toggleMenu}
                 className="flex items-center gap-2 px-4 py-2.5 btn-outline-primary rounded-lg text-sm font-medium disabled:opacity-50"
                 aria-expanded={open}
                 aria-haspopup="menu"
@@ -73,26 +120,67 @@ const ExportDropdown = ({ exportConfig, disabled = false, className = '' }) => {
             {open && (
                 <div
                     role="menu"
-                    className="absolute right-0 mt-2 w-52 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+                    className={`absolute right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 ${
+                        showEmailForm ? 'w-72 p-4' : 'w-52 py-1'
+                    }`}
                 >
-                    <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => runExport('download')}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left"
-                    >
-                        <Download size={16} className="text-gray-500" />
-                        Download PDF
-                    </button>
-                    <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => runExport('email')}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left"
-                    >
-                        <Mail size={16} className="text-gray-500" />
-                        Send to email
-                    </button>
+                    {showEmailForm ? (
+                        <form onSubmit={runEmailExport} className="space-y-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowEmailForm(false)}
+                                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800"
+                            >
+                                <ArrowLeft size={14} />
+                                Back
+                            </button>
+                            <div>
+                                <label htmlFor="export-recipient-email" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Send to email
+                                </label>
+                                <input
+                                    ref={emailInputRef}
+                                    id="export-recipient-email"
+                                    type="email"
+                                    value={recipientEmail}
+                                    onChange={(e) => setRecipientEmail(e.target.value)}
+                                    placeholder="name@example.com"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-black/10 focus:border-black"
+                                    disabled={busy}
+                                    required
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={busy}
+                                className="w-full flex items-center justify-center gap-2 py-2.5 btn-outline-primary rounded-lg text-sm font-medium disabled:opacity-50"
+                            >
+                                {busy ? <Loader size={16} className="animate-spin" /> : <Mail size={16} />}
+                                Send PDF
+                            </button>
+                        </form>
+                    ) : (
+                        <>
+                            <button
+                                type="button"
+                                role="menuitem"
+                                onClick={runDownload}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left"
+                            >
+                                <Download size={16} className="text-gray-500" />
+                                Download PDF
+                            </button>
+                            <button
+                                type="button"
+                                role="menuitem"
+                                onClick={openEmailForm}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left"
+                            >
+                                <Mail size={16} className="text-gray-500" />
+                                Send to email
+                            </button>
+                        </>
+                    )}
                 </div>
             )}
         </div>
