@@ -89,7 +89,7 @@ const Drivers = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
-            <Header title="Drivers Management" subtitle="Approve and manage drivers (API)" />
+            <Header title="Drivers Management" subtitle="Approve and manage drivers" />
 
             <div className="p-6 flex-1">
                 {loading ? (

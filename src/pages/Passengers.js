@@ -99,7 +99,7 @@ const Passengers = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
-            <Header title="Passengers" subtitle="Registered passengers (API)" />
+            <Header title="Passengers" subtitle="Registered passengers" />
 
             <div className="p-6 flex-1">
                 <div className="mb-6 relative max-w-md">
