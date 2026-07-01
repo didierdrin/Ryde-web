@@ -58,7 +58,20 @@ const formatLabel = (value) => {
 const displayDailyRate = (vehicle) =>
     vehicle.dailyRateWithoutDriver ?? vehicle.dailyRate ?? 0;
 
-const isVehicleAvailable = (vehicle) => vehicle?.isAvailable !== false;
+const formatDateInput = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+
+const countRentalDays = (start, end) => {
+    const s = new Date(`${start}T00:00:00`);
+    const e = new Date(`${end}T00:00:00`);
+    return Math.max(1, Math.round((e - s) / (24 * 60 * 60 * 1000)) + 1);
+};
+
+const isVehicleAvailable = (vehicle) => vehicle?.isAvailable === true;
 
 const vehicleToEditForm = (vehicle) => ({
     id: vehicle.id,
@@ -109,6 +122,12 @@ const Rentals = () => {
     const [editForm, setEditForm] = useState(null);
     const [savingVehicle, setSavingVehicle] = useState(false);
     const [rentWithDriver, setRentWithDriver] = useState(false);
+    const [rentalStartDate, setRentalStartDate] = useState(() => formatDateInput(new Date()));
+    const [rentalEndDate, setRentalEndDate] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return formatDateInput(d);
+    });
     const [payingVehicleId, setPayingVehicleId] = useState(null);
     const [error, setError] = useState(null);
     const [paymentConfirm, setPaymentConfirm] = useState({ open: false, intentId: null, vehicleLabel: '', clientConfirmed: false });
@@ -135,6 +154,11 @@ const Rentals = () => {
         setSelectedVehicle(vehicle);
         setEditForm(isAdmin ? vehicleToEditForm(vehicle) : null);
         setRentWithDriver(false);
+        const today = formatDateInput(new Date());
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setRentalStartDate(today);
+        setRentalEndDate(formatDateInput(tomorrow));
     };
 
     const closeVehicleDetails = () => {
@@ -203,7 +227,7 @@ const Rentals = () => {
         }
     };
 
-    const handleRent = async (vehicle, withDriver = false, days = 1) => {
+    const handleRent = async (vehicle, withDriver = false) => {
         if (!IPAY_PUBLIC_KEY) {
             alert('Payment (IremboPay) is not configured.');
             return;
@@ -212,11 +236,20 @@ const Rentals = () => {
             alert('Payment system is not ready. Please refresh and try again.');
             return;
         }
+        if (!rentalStartDate || !rentalEndDate) {
+            alert('Please select rental start and end dates.');
+            return;
+        }
+        if (rentalEndDate < rentalStartDate) {
+            alert('End date must be on or after start date.');
+            return;
+        }
 
+        const days = countRentalDays(rentalStartDate, rentalEndDate);
         const rate = withDriver
             ? (vehicle.dailyRateWithDriver ?? vehicle.dailyRate)
             : (vehicle.dailyRateWithoutDriver ?? vehicle.dailyRate);
-        const amount = Number(rate) * Math.max(1, Number(days));
+        const amount = Number(rate) * days;
 
         if (!amount || amount <= 0) {
             alert('Invalid amount.');
@@ -225,7 +258,12 @@ const Rentals = () => {
 
         setPayingVehicleId(vehicle.id);
         try {
-            const { invoiceNumber, intentId } = await api.createInvoiceForAmount(amount, undefined, vehicle.id);
+            const { invoiceNumber, intentId } = await api.createInvoiceForAmount({
+                vehicleRef: vehicle.id,
+                rentalStartDate,
+                rentalEndDate,
+                withDriver,
+            });
             if (!invoiceNumber || !intentId) {
                 alert('Could not create payment invoice. Please try again.');
                 return;
@@ -234,18 +272,26 @@ const Rentals = () => {
                 publicKey: IPAY_PUBLIC_KEY,
                 invoiceNumber,
                 locale: window.IremboPay.locale.EN,
-                callback: (err) => {
+                callback: async (err) => {
                     setPayingVehicleId(null);
                     if (!err) {
+                        try {
+                            await api.acknowledgeRentalPayment(intentId);
+                        } catch (_) {
+                            syncRentalIntentInBackground(intentId);
+                        }
                         setPaymentConfirm({
                             open: true,
                             intentId,
                             vehicleLabel: `${vehicle.make} ${vehicle.model}`,
                             clientConfirmed: true,
                         });
-                        syncRentalIntentInBackground(intentId);
+                        await loadVehicles();
                         closeVehicleDetails();
                     } else {
+                        try {
+                            await api.cancelRentalPayment(intentId);
+                        } catch (_) {}
                         alert('Payment failed or was cancelled.');
                     }
                 },
@@ -261,6 +307,9 @@ const Rentals = () => {
             ? (selectedVehicle.dailyRateWithDriver ?? selectedVehicle.dailyRate)
             : (selectedVehicle.dailyRateWithoutDriver ?? selectedVehicle.dailyRate))
         : 0;
+
+    const selectedDays = countRentalDays(rentalStartDate, rentalEndDate);
+    const selectedTotal = Number(selectedRate) * selectedDays;
 
     const mostRentedId = getMostRentedId(vehicles);
 
@@ -360,6 +409,11 @@ const Rentals = () => {
                                     <p className="text-sm text-gray-600 mt-1">{v.year} • {v.color} • {formatLabel(v.type)}</p>
                                     {v.description && (
                                         <p className="text-sm text-gray-500 mt-2 line-clamp-2">{v.description}</p>
+                                    )}
+                                    {!isVehicleAvailable(v) && v.rentedUntil && (
+                                        <p className="text-xs text-amber-700 mt-2">
+                                            Rented until {v.rentedUntil}
+                                        </p>
                                     )}
                                     <p className="mt-4 text-xl font-semibold text-gray-900">
                                         {formatRwf(displayDailyRate(v))}{' '}
@@ -559,6 +613,32 @@ const Rentals = () => {
                                         {isPassenger && isVehicleAvailable(selectedVehicle) && (
                                             <div className="mt-6 space-y-4">
                                                 <div>
+                                                    <p className="text-sm font-medium text-gray-700 mb-2">Rental period</p>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="block text-xs text-gray-500 mb-1">From</label>
+                                                            <input
+                                                                type="date"
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black"
+                                                                value={rentalStartDate}
+                                                                min={formatDateInput(new Date())}
+                                                                onChange={(e) => setRentalStartDate(e.target.value)}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs text-gray-500 mb-1">To</label>
+                                                            <input
+                                                                type="date"
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-black"
+                                                                value={rentalEndDate}
+                                                                min={rentalStartDate || formatDateInput(new Date())}
+                                                                onChange={(e) => setRentalEndDate(e.target.value)}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 mt-2">{selectedDays} day{selectedDays !== 1 ? 's' : ''}</p>
+                                                </div>
+                                                <div>
                                                     <p className="text-sm font-medium text-gray-700 mb-2">Rental option</p>
                                                     <div className="flex gap-2">
                                                         <button
@@ -578,7 +658,10 @@ const Rentals = () => {
                                                     </div>
                                                 </div>
                                                 <p className="text-lg font-semibold text-gray-900">
-                                                    Total: {formatRwf(selectedRate)} <span className="text-sm font-normal text-gray-500">/ day</span>
+                                                    Total: {formatRwf(selectedTotal)}{' '}
+                                                    <span className="text-sm font-normal text-gray-500">
+                                                        ({formatRwf(selectedRate)} × {selectedDays} day{selectedDays !== 1 ? 's' : ''})
+                                                    </span>
                                                 </p>
                                                 <button
                                                     type="button"
@@ -594,7 +677,9 @@ const Rentals = () => {
 
                                         {isPassenger && !isVehicleAvailable(selectedVehicle) && (
                                             <p className="mt-6 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-                                                This vehicle is currently rented and not available for booking.
+                                                This vehicle is currently rented
+                                                {selectedVehicle.rentedUntil ? ` until ${selectedVehicle.rentedUntil}` : ''}
+                                                {' '}and not available for booking.
                                             </p>
                                         )}
                                     </>
@@ -706,7 +791,10 @@ const Rentals = () => {
                 poll={paymentConfirm.intentId
                     ? () => waitForRentalIntentCompleted(paymentConfirm.intentId)
                     : null}
-                onClose={() => setPaymentConfirm({ open: false, intentId: null, vehicleLabel: '', clientConfirmed: false })}
+                onClose={async () => {
+                    setPaymentConfirm({ open: false, intentId: null, vehicleLabel: '', clientConfirmed: false });
+                    await loadVehicles();
+                }}
             />
         </div>
     );

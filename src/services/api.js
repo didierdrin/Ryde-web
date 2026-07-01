@@ -220,14 +220,30 @@ class ApiService {
     });
   }
 
-  async createInvoiceForAmount(amount, address, vehicleRef) {
+  async createInvoiceForAmount(amountOrOptions, address, vehicleRef) {
+    const body =
+      amountOrOptions != null && typeof amountOrOptions === 'object'
+        ? amountOrOptions
+        : {
+            amount: Number(amountOrOptions),
+            address: address || undefined,
+            vehicleRef: vehicleRef || undefined,
+          };
     return this.request('/payments/create-invoice-for-amount', {
       method: 'POST',
-      body: JSON.stringify({
-        amount: Number(amount),
-        address: address || undefined,
-        vehicleRef: vehicleRef || undefined,
-      }),
+      body: JSON.stringify(body),
+    });
+  }
+
+  async acknowledgeRentalPayment(intentId) {
+    return this.request(`/payments/rental-intent/${encodeURIComponent(intentId)}/acknowledge`, {
+      method: 'POST',
+    });
+  }
+
+  async cancelRentalPayment(intentId) {
+    return this.request(`/payments/rental-intent/${encodeURIComponent(intentId)}/cancel`, {
+      method: 'POST',
     });
   }
 
