@@ -19,6 +19,7 @@ import Mechanics from './pages/Mechanics';
 import AvailableDrivers from './pages/AvailableDrivers';
 import Search from './pages/Search';
 import Profile from './pages/Profile';
+import Notifications from './pages/Notifications';
 import api from './services/api';
 
 function ProtectedRoute({ children }) {
@@ -63,6 +64,7 @@ function App() {
             <Route path="passengers" element={<Passengers />} />
             <Route path="subscription" element={<Subscriptions />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="notifications" element={<Notifications />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

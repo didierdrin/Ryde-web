@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Search, Bell, User, ArrowLeft } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ExportDropdown from './ExportDropdown';
+import api from '../services/api';
 
 const formatRole = (userType) => {
     if (!userType) return 'User';
@@ -12,9 +13,31 @@ const formatRole = (userType) => {
 
 const Header = ({ title, subtitle, onBack, backLabel = 'Back', exportConfig, actions }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState('');
+    const [unreadCount, setUnreadCount] = useState(0);
     const { user } = useAuth();
+
+    const loadUnreadCount = useCallback(async () => {
+        try {
+            const { unreadCount: count } = await api.getUnreadCount();
+            setUnreadCount(Number(count) || 0);
+        } catch (_) {
+            setUnreadCount(0);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadUnreadCount();
+        const interval = setInterval(loadUnreadCount, 60000);
+        const onUpdated = () => loadUnreadCount();
+        window.addEventListener('ryde:notifications-updated', onUpdated);
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('ryde:notifications-updated', onUpdated);
+        };
+    }, [loadUnreadCount, location.pathname]);
 
     useEffect(() => {
         const query = searchParams.get('q');
@@ -71,12 +94,19 @@ const Header = ({ title, subtitle, onBack, backLabel = 'Back', exportConfig, act
                         />
                     </div>
 
-                    <div className="relative p-2 cursor-pointer text-gray-600">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/app/notifications')}
+                        className="relative p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                        aria-label="Notifications"
+                    >
                         <Bell size={20} />
-                        <span className="absolute -top-0 -right-0 bg-red-500 text-white text-xs font-bold h-4 w-4 rounded-full flex items-center justify-center">
-                            3
-                        </span>
-                    </div>
+                        {unreadCount > 0 && (
+                            <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[10px] font-bold min-w-[1rem] h-4 px-1 rounded-full flex items-center justify-center">
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                            </span>
+                        )}
+                    </button>
 
                     <button
                         type="button"
