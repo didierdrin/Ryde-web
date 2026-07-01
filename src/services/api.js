@@ -297,9 +297,8 @@ class ApiService {
   }
 
   // Rentals
-  async getRentalVehicles(all = false) {
-    const url = all ? '/rentals?all=true' : '/rentals';
-    return this.request(url);
+  async getRentalVehicles() {
+    return this.request('/rentals');
   }
 
   async createRentalVehicle(vehicleData) {

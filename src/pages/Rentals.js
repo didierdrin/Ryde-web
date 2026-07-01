@@ -71,7 +71,16 @@ const countRentalDays = (start, end) => {
     return Math.max(1, Math.round((e - s) / (24 * 60 * 60 * 1000)) + 1);
 };
 
-const isVehicleAvailable = (vehicle) => vehicle?.isAvailable === true;
+const isVehicleAvailable = (vehicle) => {
+    if (vehicle?.isAvailable === false) return false;
+    if (vehicle?.rentedUntil) {
+        const end = new Date(`${String(vehicle.rentedUntil).slice(0, 10)}T00:00:00`);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (end >= today) return false;
+    }
+    return vehicle?.isAvailable === true;
+};
 
 const vehicleToEditForm = (vehicle) => ({
     id: vehicle.id,
@@ -136,7 +145,7 @@ const Rentals = () => {
         setLoading(true);
         setError(null);
         try {
-            const { vehicles: list } = await api.getRentalVehicles(isAdmin);
+            const { vehicles: list } = await api.getRentalVehicles();
             setVehicles(list || []);
         } catch (e) {
             setError(e.message || 'Failed to load rental vehicles');
@@ -144,10 +153,16 @@ const Rentals = () => {
         } finally {
             setLoading(false);
         }
-    }, [isAdmin]);
+    }, []);
 
     useEffect(() => {
         loadVehicles();
+    }, [loadVehicles]);
+
+    useEffect(() => {
+        const onFocus = () => loadVehicles();
+        window.addEventListener('focus', onFocus);
+        return () => window.removeEventListener('focus', onFocus);
     }, [loadVehicles]);
 
     const openVehicleDetails = (vehicle) => {
