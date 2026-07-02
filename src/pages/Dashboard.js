@@ -3,9 +3,10 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar
 } from 'recharts';
-import { Users, Route, DollarSign, Crown, User } from 'lucide-react';
+import { Users, Route, DollarSign, Crown, User, X } from 'lucide-react';
 import api from '../services/api';
 import Header from '../components/Header';
+import ExportDropdown from '../components/ExportDropdown';
 import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -18,8 +19,19 @@ import {
     withBadgeColumn,
 } from '../utils/exportBadges';
 
-const StatCard = ({ title, value, change, icon: Icon, color }) => (
-    <div className="bg-white rounded-lg p-6 flex justify-between items-start shadow-sm border border-gray-200">
+const StatCard = ({ title, value, change, icon: Icon, color, onClick }) => (
+    <div
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={onClick ? (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+            }
+        } : undefined}
+        className={`bg-white rounded-lg p-6 flex justify-between items-start shadow-sm border border-gray-200${onClick ? ' cursor-pointer hover:border-gray-300 hover:shadow-md transition-all' : ''}`}
+    >
         <div className="flex flex-col">
             <span className="text-gray-600 text-sm font-medium mb-1">{title}</span>
             <h3 className="text-gray-900 text-3xl font-bold mb-1">{value}</h3>
@@ -43,6 +55,43 @@ const StatCard = ({ title, value, change, icon: Icon, color }) => (
     </div>
 );
 
+const StatDetailModal = ({ title, count, onClose, exportConfig, children }) => (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+        <div
+            className="bg-white rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+        >
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center shrink-0">
+                <div>
+                    <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                        {count.toLocaleString()} record{count !== 1 ? 's' : ''}
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    {exportConfig && <ExportDropdown exportConfig={exportConfig} />}
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="p-1.5 rounded-full text-gray-500 hover:text-gray-900"
+                        aria-label="Close"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+            </div>
+            <div className="overflow-auto flex-1 p-6">{children}</div>
+        </div>
+    </div>
+);
+
+const rideStatusClass = (status) => {
+    if (status === 'COMPLETED') return 'bg-green-100 text-green-600';
+    if (status === 'REQUESTED') return 'bg-amber-100 text-amber-600';
+    if (status === 'CANCELLED') return 'bg-red-100 text-red-500';
+    return 'bg-blue-100 text-blue-600';
+};
+
 const Dashboard = () => {
     const { isPassenger, isDriver, isAdmin } = useAuth();
     const [recentRides, setRecentRides] = useState([]);
@@ -51,7 +100,9 @@ const Dashboard = () => {
     const [listings, setListings] = useState([]);
     const [drivers, setDrivers] = useState([]);
     const [passengers, setPassengers] = useState([]);
+    const [subscriptions, setSubscriptions] = useState([]);
     const [topDrivers, setTopDrivers] = useState([]);
+    const [detailModal, setDetailModal] = useState(null);
     const [stats, setStats] = useState({
         totalRides: 0,
         activeDrivers: 0,
@@ -152,6 +203,20 @@ const Dashboard = () => {
                         api.getAdminPassengers().then((r) => setPassengers(r.passengers || [])).catch(() => setPassengers([])),
                     );
                 }
+                if (isAdmin || isDriver) {
+                    extraLoads.push(
+                        api.getAdminSubscriptions()
+                            .then((r) => {
+                                const subs = r.subscriptions || [];
+                                setSubscriptions(subs);
+                                setStats((prev) => ({
+                                    ...prev,
+                                    subscribers: subs.filter((s) => s.isActive).length,
+                                }));
+                            })
+                            .catch(() => setSubscriptions([])),
+                    );
+                }
                 await Promise.all(extraLoads);
             } catch (error) {
                 console.error("Error fetching dashboard data:", error);
@@ -161,7 +226,7 @@ const Dashboard = () => {
         };
 
         fetchData();
-    }, [isAdmin]);
+    }, [isAdmin, isDriver]);
 
     const formatTripDate = (t) => {
         const d = t?.requestTime || t?.request_time;
@@ -205,6 +270,50 @@ const Dashboard = () => {
     const mostSoldListing = listings.find((l) => l.id === mostSoldId);
     const highPerformer = drivers.find((d) => d.driverId === highPerformerId);
     const royalCustomer = passengers.find((p) => p.passengerId === royalCustomerId);
+
+    const completedTrips = allTrips.filter((t) => t.status === 'COMPLETED');
+
+    const activeDriversList = (() => {
+        const driverMap = {};
+        allTrips.forEach((trip) => {
+            if (!trip.driverId) return;
+            const id = trip.driverId;
+            if (!driverMap[id]) {
+                const adminDriver = drivers.find((d) => d.driverId === id);
+                driverMap[id] = {
+                    id,
+                    name: trip.driverName || adminDriver?.name || 'Driver',
+                    phone: adminDriver?.phoneNumber || '—',
+                    trips: 0,
+                    earnings: 0,
+                };
+            }
+            driverMap[id].trips += 1;
+            if (trip.status === 'COMPLETED') {
+                driverMap[id].earnings += Number(trip.fare) || 0;
+            }
+        });
+        return Object.values(driverMap).sort((a, b) => b.trips - a.trips);
+    })();
+
+    const revenueExportConfig = {
+        title: isPassenger ? 'Spending Report' : 'Revenue Report',
+        subtitle: `Completed trips — ${completedTrips.length} records`,
+        filename: 'ryde-revenue-report',
+        summary: [
+            { label: isPassenger ? 'Total Spent' : 'Total Revenue', value: formatCurrency(stats.revenue) },
+            { label: 'Completed Trips', value: completedTrips.length },
+        ],
+        columns: ['From', 'To', 'Date', 'Driver', 'Passenger', 'Fare (RWF)'],
+        rows: completedTrips.map((t) => [
+            pickupAddress(t),
+            destinationAddress(t),
+            formatTripDate(t),
+            t.driverName || '—',
+            t.passengerName || '—',
+            t.fare ?? 0,
+        ]),
+    };
 
     const exportConfig = {
         title: 'RYDE General Report',
@@ -314,6 +423,7 @@ const Dashboard = () => {
                         change={isAdmin ? '+5%' : null}
                         icon={Route}
                         color="blue"
+                        onClick={() => setDetailModal('rides')}
                     />
                     {isAdmin && (
                         <StatCard
@@ -322,6 +432,7 @@ const Dashboard = () => {
                             change="+0%"
                             icon={Users}
                             color="green"
+                            onClick={() => setDetailModal('drivers')}
                         />
                     )}
                     <StatCard
@@ -330,6 +441,7 @@ const Dashboard = () => {
                         change={isAdmin ? '+12%' : null}
                         icon={DollarSign}
                         color="amber"
+                        onClick={() => setDetailModal('revenue')}
                     />
                     {(isAdmin || isDriver) && (
                         <StatCard
@@ -337,6 +449,7 @@ const Dashboard = () => {
                             value={stats.subscribers.toLocaleString()}
                             icon={Crown}
                             color="purple"
+                            onClick={() => setDetailModal('subscribers')}
                         />
                     )}
                 </div>
@@ -464,6 +577,168 @@ const Dashboard = () => {
                     )}
                 </div>
             </div>
+
+            {detailModal === 'rides' && (
+                <StatDetailModal
+                    title="Total Rides"
+                    count={allTrips.length}
+                    onClose={() => setDetailModal(null)}
+                >
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Passenger</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">From</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">To</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Date</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Status</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Fare (RWF)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {allTrips.length > 0 ? allTrips.map((ride) => (
+                                    <tr key={ride.tripId || ride.id} className="hover:bg-gray-50">
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-900">{ride.passengerName || '—'}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-600 max-w-[160px] truncate" title={pickupAddress(ride)}>{pickupAddress(ride)}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-600 max-w-[160px] truncate" title={destinationAddress(ride)}>{destinationAddress(ride)}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-600">{formatTripDate(ride)}</td>
+                                        <td className="p-4 border-b border-gray-200">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${rideStatusClass(ride.status)}`}>
+                                                {ride.status || 'REQUESTED'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-900">{formatRwf(ride.fare)}</td>
+                                    </tr>
+                                )) : (
+                                    <tr><td colSpan={6} className="text-center p-4 text-gray-600">No rides found.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </StatDetailModal>
+            )}
+
+            {detailModal === 'drivers' && isAdmin && (
+                <StatDetailModal
+                    title="Active Drivers"
+                    count={activeDriversList.length}
+                    onClose={() => setDetailModal(null)}
+                >
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Driver</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Phone</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Total Trips</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Earnings (RWF)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {activeDriversList.length > 0 ? activeDriversList.map((driver) => (
+                                    <tr key={driver.id} className="hover:bg-gray-50">
+                                        <td className="p-4 border-b border-gray-200 text-sm font-medium text-gray-900">{driver.name}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-600">{driver.phone}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-900">{driver.trips}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-green-600 font-medium">{formatRwf(driver.earnings)}</td>
+                                    </tr>
+                                )) : (
+                                    <tr><td colSpan={4} className="text-center p-4 text-gray-600">No active drivers found.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </StatDetailModal>
+            )}
+
+            {detailModal === 'revenue' && (
+                <StatDetailModal
+                    title={isPassenger ? 'Total Spent' : 'Revenue'}
+                    count={completedTrips.length}
+                    onClose={() => setDetailModal(null)}
+                    exportConfig={revenueExportConfig}
+                >
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">From</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">To</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Date</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Driver</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Passenger</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Fare (RWF)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {completedTrips.length > 0 ? completedTrips.map((trip) => (
+                                    <tr key={trip.tripId || trip.id} className="hover:bg-gray-50">
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-600 max-w-[160px] truncate" title={pickupAddress(trip)}>{pickupAddress(trip)}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-600 max-w-[160px] truncate" title={destinationAddress(trip)}>{destinationAddress(trip)}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-600">{formatTripDate(trip)}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-900">{trip.driverName || '—'}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-900">{trip.passengerName || '—'}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm font-medium text-green-600">{formatRwf(trip.fare)}</td>
+                                    </tr>
+                                )) : (
+                                    <tr><td colSpan={6} className="text-center p-4 text-gray-600">No completed trips found.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </StatDetailModal>
+            )}
+
+            {detailModal === 'subscribers' && (isAdmin || isDriver) && (
+                <StatDetailModal
+                    title="Subscribers"
+                    count={subscriptions.length}
+                    onClose={() => setDetailModal(null)}
+                >
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Driver</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Phone</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Plan</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Status</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">Start</th>
+                                    <th className="text-left p-4 text-gray-600 text-xs uppercase font-semibold border-b border-gray-200">End</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {subscriptions.length > 0 ? subscriptions.map((sub) => (
+                                    <tr key={sub.id} className="hover:bg-gray-50">
+                                        <td className="p-4 border-b border-gray-200 text-sm font-medium text-gray-900">{sub.driverName || sub.driverId || '—'}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-600">{sub.driverPhone || '—'}</td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-900">
+                                            {sub.tier || sub.plan || '—'}
+                                            {sub.commissionRate != null && (
+                                                <span className="block text-xs text-gray-500">{sub.commissionRate}% commission</span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 border-b border-gray-200">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${sub.isActive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
+                                                {sub.isActive ? 'ACTIVE' : 'CANCELLED'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-600">
+                                            {sub.startDate ? new Date(sub.startDate).toLocaleDateString() : '—'}
+                                        </td>
+                                        <td className="p-4 border-b border-gray-200 text-sm text-gray-600">
+                                            {sub.endDate ? new Date(sub.endDate).toLocaleDateString() : '—'}
+                                        </td>
+                                    </tr>
+                                )) : (
+                                    <tr><td colSpan={6} className="text-center p-4 text-gray-600">No subscriptions found.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </StatDetailModal>
+            )}
         </div>
     );
 };
