@@ -5,7 +5,7 @@ import Header from '../components/Header';
 import ExportDropdown from '../components/ExportDropdown';
 import { StatusBadge, DetailRow, driverVerificationMeta } from '../components/ui/EntityUI';
 import { CardGridSkeleton, EntityCardSkeleton } from '../components/ui/Skeleton';
-import { Truck, User, FileText, X, Loader, Route } from 'lucide-react';
+import { Truck, User, FileText, X, Loader, Route, Calendar } from 'lucide-react';
 import { BADGES, badgeCell, getHighPerformerId, withBadgeColumn } from '../utils/exportBadges';
 import { normalizeTrip, tripField } from '../utils/tripUtils';
 
@@ -18,6 +18,62 @@ const rideStatusColors = {
 };
 
 const formatDate = (d) => (d ? new Date(d).toLocaleString() : '—');
+
+const formatDateInput = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+
+const tripDateKey = (trip) => {
+    const raw = tripField(trip, 'requestTime');
+    if (!raw) return null;
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return null;
+    return formatDateInput(date);
+};
+
+const RIDE_DATE_FILTERS = [
+    { key: 'all', label: 'All drivers' },
+    { key: 'today', label: 'Rode today' },
+    { key: 'yesterday', label: 'Rode yesterday' },
+    { key: 'custom', label: 'Custom period' },
+];
+
+const getRideDateRange = (filter, customFrom, customTo) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (filter === 'today') {
+        const key = formatDateInput(today);
+        return { from: key, to: key, label: 'Today' };
+    }
+
+    if (filter === 'yesterday') {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const key = formatDateInput(yesterday);
+        return { from: key, to: key, label: 'Yesterday' };
+    }
+
+    if (filter === 'custom' && customFrom && customTo) {
+        return {
+            from: customFrom <= customTo ? customFrom : customTo,
+            to: customTo >= customFrom ? customTo : customFrom,
+            label: `${customFrom} – ${customTo}`,
+        };
+    }
+
+    return null;
+};
+
+const tripInDateRange = (trip, range) => {
+    if (!range) return true;
+    const key = tripDateKey(trip);
+    if (!key) return false;
+    return key >= range.from && key <= range.to;
+};
 
 const tripRoute = (trip) => {
     const pickup = tripField(trip, 'pickupAddress') || '—';
@@ -76,6 +132,9 @@ const Drivers = () => {
     const [selectedDriver, setSelectedDriver] = useState(null);
     const [editForm, setEditForm] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [rideDateFilter, setRideDateFilter] = useState('all');
+    const [customDateFrom, setCustomDateFrom] = useState('');
+    const [customDateTo, setCustomDateTo] = useState('');
 
     const fetchDrivers = async () => {
         try {
@@ -105,6 +164,53 @@ const Drivers = () => {
         fetchDrivers();
         fetchTrips();
     }, []);
+
+    const rideDateRange = useMemo(
+        () => getRideDateRange(rideDateFilter, customDateFrom, customDateTo),
+        [rideDateFilter, customDateFrom, customDateTo]
+    );
+
+    const tripsByDriverId = useMemo(() => {
+        const map = new Map();
+        allTrips.forEach((trip) => {
+            const driverId = tripField(trip, 'driverId');
+            if (!driverId) return;
+            if (!map.has(driverId)) map.set(driverId, []);
+            map.get(driverId).push(trip);
+        });
+        return map;
+    }, [allTrips]);
+
+    const driverRideStats = useMemo(() => {
+        const stats = new Map();
+        drivers.forEach((driver) => {
+            const trips = tripsByDriverId.get(driver.driverId) || [];
+            const periodTrips = rideDateRange
+                ? trips.filter((t) => tripInDateRange(t, rideDateRange))
+                : trips;
+            const lastRideTime = periodTrips.reduce((latest, trip) => {
+                const time = new Date(tripField(trip, 'requestTime') || 0).getTime();
+                return time > latest ? time : latest;
+            }, 0);
+            stats.set(driver.driverId, {
+                periodRideCount: periodTrips.length,
+                lastRideTime,
+            });
+        });
+        return stats;
+    }, [drivers, tripsByDriverId, rideDateRange]);
+
+    const filteredDrivers = useMemo(() => {
+        let list = drivers;
+        if (rideDateRange) {
+            list = drivers.filter((d) => (driverRideStats.get(d.driverId)?.periodRideCount || 0) > 0);
+        }
+        return [...list].sort((a, b) => {
+            const aTime = driverRideStats.get(a.driverId)?.lastRideTime || 0;
+            const bTime = driverRideStats.get(b.driverId)?.lastRideTime || 0;
+            return bTime - aTime;
+        });
+    }, [drivers, rideDateRange, driverRideStats]);
 
     const driverTrips = useMemo(() => {
         if (!selectedDriver?.driverId) return [];
@@ -163,25 +269,29 @@ const Drivers = () => {
 
     const exportConfig = {
         title: 'Drivers Report',
-        subtitle: 'Approve and manage drivers',
+        subtitle: rideDateRange
+            ? `Drivers with rides — ${rideDateRange.label}`
+            : 'Approve and manage drivers',
         filename: 'ryde-drivers',
         summary: [
-            { label: 'Total drivers', value: drivers.length },
+            { label: 'Total drivers', value: filteredDrivers.length },
+            ...(rideDateRange ? [{ label: 'Period', value: rideDateRange.label }] : []),
             ...(highPerformer ? [{ label: 'High Performer', value: highPerformer.name }] : []),
         ],
-        columns: ['Name', 'Phone', 'Email', 'Trips', 'Rating', 'Verification', 'Available', 'License', 'Badge'],
+        columns: ['Name', 'Phone', 'Email', 'Trips', 'Rides in period', 'Rating', 'Verification', 'Available', 'License', 'Badge'],
         rows: withBadgeColumn(
-            drivers.map((d) => [
+            filteredDrivers.map((d) => [
                 d.name,
                 d.phoneNumber,
                 d.email,
                 d.totalTrips ?? '—',
+                driverRideStats.get(d.driverId)?.periodRideCount ?? '—',
                 d.rating ?? '—',
                 d.verificationStatus || 'PENDING',
                 d.isAvailable !== false ? 'Yes' : 'No',
                 d.licenseNumber || '—',
             ]),
-            drivers.map((d) => badgeCell(d.driverId, highPerformerId, BADGES.HIGH_PERFORMER))
+            filteredDrivers.map((d) => badgeCell(d.driverId, highPerformerId, BADGES.HIGH_PERFORMER))
         ),
     };
 
@@ -192,12 +302,88 @@ const Drivers = () => {
             <Header title="Drivers Management" subtitle="Approve and manage drivers" exportConfig={exportConfig} />
 
             <div className="p-6 flex-1">
+                <div className="mb-6 space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5 mr-1">
+                            <Calendar size={16} />
+                            Filter by ride date:
+                        </span>
+                        {RIDE_DATE_FILTERS.map(({ key, label }) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => {
+                                    setRideDateFilter(key);
+                                    if (key === 'custom' && !customDateFrom && !customDateTo) {
+                                        const today = formatDateInput(new Date());
+                                        setCustomDateFrom(today);
+                                        setCustomDateTo(today);
+                                    }
+                                }}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium btn-tab ${rideDateFilter === key ? 'btn-tab-active' : ''}`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {rideDateFilter === 'custom' && (
+                        <div className="flex flex-wrap items-end gap-3 p-4 bg-white rounded-xl border border-gray-200">
+                            <div>
+                                <label htmlFor="driver-filter-from" className="block text-xs font-medium text-gray-600 mb-1">From</label>
+                                <input
+                                    id="driver-filter-from"
+                                    type="date"
+                                    value={customDateFrom}
+                                    max={customDateTo || undefined}
+                                    onChange={(e) => setCustomDateFrom(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="driver-filter-to" className="block text-xs font-medium text-gray-600 mb-1">To</label>
+                                <input
+                                    id="driver-filter-to"
+                                    type="date"
+                                    value={customDateTo}
+                                    min={customDateFrom || undefined}
+                                    onChange={(e) => setCustomDateTo(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                />
+                            </div>
+                            {rideDateRange && (
+                                <p className="text-sm text-gray-500 pb-2">
+                                    Showing drivers with rides between {rideDateRange.from} and {rideDateRange.to}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {rideDateRange && rideDateFilter !== 'custom' && (
+                        <p className="text-sm text-gray-500">
+                            Showing {filteredDrivers.length} driver{filteredDrivers.length === 1 ? '' : 's'} who rode {rideDateRange.label.toLowerCase()}
+                        </p>
+                    )}
+                    {rideDateFilter === 'custom' && customDateFrom && customDateTo && (
+                        <p className="text-sm text-gray-500">
+                            Showing {filteredDrivers.length} driver{filteredDrivers.length === 1 ? '' : 's'} in selected period
+                        </p>
+                    )}
+                </div>
+
                 {loading ? (
                     <CardGridSkeleton count={6} Card={EntityCardSkeleton} columns="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" />
+                ) : filteredDrivers.length === 0 ? (
+                    <div className="text-center py-16 text-gray-500 bg-white rounded-xl border border-gray-100">
+                        {rideDateRange
+                            ? 'No drivers found with rides in this period.'
+                            : 'No drivers found.'}
+                    </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {drivers.map((driver) => {
+                        {filteredDrivers.map((driver) => {
                             const verification = driverVerificationMeta(driver.verificationStatus);
+                            const periodRides = driverRideStats.get(driver.driverId)?.periodRideCount || 0;
                             return (
                                 <div key={driver.driverId} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
                                     <div className="p-5 flex-1">
@@ -212,6 +398,11 @@ const Drivers = () => {
                                             <div className="flex-1 min-w-0">
                                                 <h3 className="font-bold text-gray-900 truncate">{driver.name}</h3>
                                                 <p className="text-sm text-gray-500">{driver.phoneNumber}</p>
+                                                {rideDateRange && periodRides > 0 && (
+                                                    <p className="text-xs text-gray-600 mt-1">
+                                                        {periodRides} ride{periodRides === 1 ? '' : 's'} in period
+                                                    </p>
+                                                )}
                                             </div>
                                             <StatusBadge label={verification.label} tone={verification.tone} />
                                         </div>
