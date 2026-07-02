@@ -36,8 +36,8 @@ const tripDateKey = (trip) => {
 
 const RIDE_DATE_FILTERS = [
     { key: 'all', label: 'All drivers' },
-    { key: 'today', label: 'Rode today' },
-    { key: 'yesterday', label: 'Rode yesterday' },
+    { key: 'today', label: 'Today Rides' },
+    { key: 'yesterday', label: 'Yesterday Rides' },
     { key: 'custom', label: 'Custom period' },
 ];
 
